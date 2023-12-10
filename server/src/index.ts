@@ -1,20 +1,20 @@
 import i2c from "i2c-bus";
-import { I2CRelayBus } from "./relay";
+import { PCF8575Driver } from "./relay";
 
 async function testI2C() {
     let bus = await i2c.openPromisified(6);
-    let relay = new I2CRelayBus(bus, 32);
-    let relay2 = new I2CRelayBus(bus, 33);
+    let relay = new PCF8575Driver(bus, 32);
+    let relay2 = new PCF8575Driver(bus, 33);
 
-    relay.setAllRelays(0);
-    relay2.setAllRelays(0);
+    relay.setAllGpio(0);
+    relay2.setAllGpio(0);
 
     while (true) {
         for (let i = 0; i < 16; i++) {
             console.log("set", i);
-            relay.setAllRelays(1 << i);
+            relay.setAllGpio(1 << i);
 
-            relay2.setAllRelays(~(1 << i));
+            relay2.setAllGpio(~(1 << i));
             await new Promise((e) => setTimeout(e, 500));
         }
     }

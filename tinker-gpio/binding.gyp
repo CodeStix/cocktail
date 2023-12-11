@@ -11,9 +11,18 @@
       "dependencies": [
         "<!(node -p \"require('node-addon-api').gyp\")"
       ],
-      "cflags!": ["-fno-exceptions"],
-      "cflags_cc!": ["-fno-exceptions"],
-      "defines": ["NAPI_CPP_EXCEPTIONS"]
+      "libraries": [
+        "/usr/local/lib/libwiringPi.so"
+      ],
+      "cflags!": [
+        "-fno-exceptions"
+      ],
+      "cflags_cc!": [
+        "-fno-exceptions"
+      ],
+      "defines": [
+        "NAPI_CPP_EXCEPTIONS"
+      ]
     }
   ]
 }

@@ -24,6 +24,7 @@ export class PCF8575Driver {
     }
 
     public async setAllGpio(bits: number): Promise<void> {
+        this._cachedGpioBits = bits;
         if (this.inverted) {
             bits = ~bits;
         }

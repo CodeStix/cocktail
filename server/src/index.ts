@@ -2,6 +2,8 @@ import i2c from "i2c-bus";
 import { PCF8575Driver } from "./gpio";
 import { PCA9685Driver } from "./pwm";
 import { ADS1115 } from "./ads";
+import { digitalRead, pinMode, PinMode } from "tinker-gpio";
+import chalk from "chalk";
 
 async function testI2C() {
     let bus = await i2c.openPromisified(6);
@@ -10,6 +12,8 @@ async function testI2C() {
     let led = new PCA9685Driver(bus, 0x40);
     let ads = new ADS1115(bus, 0x48);
 
+    pinMode(15, PinMode.INPUT);
+
     await ads.initialize();
 
     await led.initialize();
@@ -17,27 +21,27 @@ async function testI2C() {
     await relay.setAllGpio(0);
     await relay2.setAllGpio(0);
 
+    let highlighedButton = -1;
     while (true) {
-        // for (let i = 0; i < 16; i++) {
-        // console.log("set", i / 16);
-        // relay.setAllGpio(1 << i);
-
-        // relay2.setAllGpio(~(1 << i));
-        // }
-        // console.log("value", value);
         for (let i = 0; i < 6; i++) {
-            let value = Math.sin(new Date().getTime() / 100 + i * 0.3) / 2 + 0.5;
-            await led.setDutyCycle(i, value);
+            if (highlighedButton === i || highlighedButton === -1) {
+                let value = Math.sin(new Date().getTime() / 250 + i * 0.3) / 2 + 0.5;
+                await led.setDutyCycle(i, value);
+            } else {
+                await led.setDutyCycle(i, 0);
+            }
         }
         await new Promise((e) => setTimeout(e, 1000 / 60));
 
         let pressureVoltage = await ads.analogRead(0);
-        console.log("pressure", (pressureVoltage / 4.5) * 5 + 1);
+
+        let buttonState = !digitalRead(15);
+        console.log("button state", buttonState ? chalk.green("yes") : chalk.red("no"));
+
+        highlighedButton = buttonState ? 0 : -1;
+
+        await relay.setGpio(4, buttonState);
     }
-    // await bus.writeByte(32, 0b00001111, 0b00111100);
-    // await bus.writeByte(33, 0b00001111, 0b00111100);
-    // let addresses = await bus.scan(0x03, 0x77);
-    // console.log("addresses", addresses);
 }
 
 async function main() {

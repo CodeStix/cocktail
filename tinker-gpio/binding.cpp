@@ -63,11 +63,27 @@ Value TinkerDigitalWrite(const CallbackInfo &info)
     return info.Env().Undefined();
 }
 
+Value TinkerPullUpDownControl(const CallbackInfo &info)
+{
+    if (!ensureSetup())
+        return info.Env().Null();
+    if (info.Length() < 2)
+        return info.Env().Null();
+
+    int pinNumber = info[0].As<Napi::Number>().Int32Value();
+    int mode = info[1].As<Napi::Number>().Int32Value();
+
+    pullUpDnControl(pinNumber, mode);
+
+    return info.Env().Undefined();
+}
+
 Object Init(Env env, Object exports)
 {
     exports.Set("pinMode", Function::New(env, TinkerPinMode));
     exports.Set("digitalRead", Function::New(env, TinkerDigitalRead));
     exports.Set("digitalWrite", Function::New(env, TinkerDigitalWrite));
+    exports.Set("pullUpDnControl", Function::New(env, TinkerPullUpDownControl));
     return exports;
 }
 

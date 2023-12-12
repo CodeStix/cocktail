@@ -5,6 +5,12 @@ export enum PinMode {
     OUTPUT = 1,
 }
 
+export enum PullUpDownMode {
+    NONE = 0,
+    DOWN = 1,
+    UP = 2,
+}
+
 export function digitalWrite(pin: number, value: boolean): void {
     bindings.digitalWrite(pin, value);
 }
@@ -15,4 +21,8 @@ export function digitalRead(pin: number): boolean {
 
 export function pinMode(pin: number, mode: PinMode): void {
     bindings.pinMode(pin, mode);
+}
+
+export function pullUpDnControl(pin: number, mode: PullUpDownMode): void {
+    bindings.pullUpDnControl(pin, mode);
 }

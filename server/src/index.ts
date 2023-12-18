@@ -1,5 +1,5 @@
 import i2c from "i2c-bus";
-import { PCF8575Driver, RelayDriver } from "./gpio";
+import { PCF8575Driver, RelayDriver as MultiPCF8575Driver } from "./gpio";
 import { PCA9685Driver } from "./pwm";
 import { ADS1115 } from "./ads";
 import { digitalRead, digitalWrite, pinMode, PinMode, pullUpDnControl, PullUpDownMode } from "tinker-gpio";
@@ -167,60 +167,200 @@ async function main() {
     console.time(chalk.green("Setup done"));
 
     let bus = await i2c.openPromisified(6);
-    void ledDriverLoop(bus);
-    void eventLoop(bus);
+    let machine = new CocktailMachine(bus);
+    await machine.initialize();
+    // void ledDriverLoop(bus);
+    // void eventLoop(bus);
 
     console.timeEnd(chalk.green("Setup done"));
 }
 
 const FRAMES_PER_SECOND = 120;
 
-async function ledDriverLoop(i2c: i2c.PromisifiedBus) {
-    console.time(chalk.green("Led driver loop started"));
-
-    let led = new PCA9685Driver(i2c, 0x40);
-    await led.initialize();
-
-    console.timeEnd(chalk.green("Led driver loop started"));
-
-    while (true) {
-        try {
-            // Drive leds here
-        } catch (ex) {
-            console.error("Error in led driver", ex);
-        } finally {
-            await new Promise((e) => setTimeout(e, 1000 / FRAMES_PER_SECOND));
-        }
-    }
+enum State {
+    IDLE = 0,
+    DRINKING_MODE = 1,
 }
 
-async function eventLoop(i2c: i2c.PromisifiedBus) {
-    console.time(chalk.green("Event loop started"));
+let state = State.IDLE;
 
-    BUTTON_PINS.forEach((e) => {
-        pinMode(e, PinMode.INPUT);
-        pullUpDnControl(e, PullUpDownMode.UP);
-    });
+// let drinkingMode = false;
 
-    let relay = new PCF8575Driver(i2c, 32);
-    let relay2 = new PCF8575Driver(i2c, 33);
-    let relays = new RelayDriver([relay, relay2]);
-    await relays.clearAll();
+const BUTTON_DRINK_MODE = 3;
 
-    let ads = new ADS1115(i2c, 0x48);
-    await ads.initialize();
+class CocktailMachine {
+    private stopDrinkingModeAt = Number.MAX_SAFE_INTEGER;
+    private relays!: MultiPCF8575Driver;
+    private ads!: ADS1115;
+    private led!: PCA9685Driver;
+    private flowCounter!: CounterDriver;
 
-    let flowCounter = new CounterDriver(i2c, 0x33);
+    constructor(private bus: i2c.PromisifiedBus) {}
 
-    console.timeEnd(chalk.green("Event loop started"));
+    public async initialize() {
+        console.time(chalk.green("Setup GPIO driver"));
+        BUTTON_PINS.forEach((e) => {
+            pinMode(e, PinMode.INPUT);
+            pullUpDnControl(e, PullUpDownMode.UP);
+        });
+        console.timeEnd(chalk.green("Setup GPIO driver"));
 
-    while (true) {
+        console.time(chalk.green("Setup GPIO expander driver"));
+        let relay = new PCF8575Driver(this.bus, 32);
+        let relay2 = new PCF8575Driver(this.bus, 33);
+        this.relays = new MultiPCF8575Driver([relay, relay2]);
+        await this.relays.clearAll();
+        console.timeEnd(chalk.green("Setup GPIO expander driver"));
+
+        console.time(chalk.green("Setup ADS driver"));
+        this.ads = new ADS1115(this.bus, 0x48);
+        await this.ads.initialize();
+        console.timeEnd(chalk.green("Setup ADS driver"));
+
+        console.time(chalk.green("Setup PWM driver"));
+        this.led = new PCA9685Driver(this.bus, 0x40);
+        await this.led.initialize();
+        console.timeEnd(chalk.green("Setup PWM driver"));
+
+        console.time(chalk.green("Setup flow driver"));
+        this.flowCounter = new CounterDriver(this.bus, 0x33);
+        console.timeEnd(chalk.green("Setup flow driver"));
+
+        void this.ledDriverLoop();
+        void this.eventLoop();
+    }
+
+    private async ledDriverLoop() {
+        console.log(chalk.green("Led driver loop started"));
+
+        while (true) {
+            const now = new Date().getTime();
+            try {
+                switch (state) {
+                    case State.IDLE: {
+                        for (let i = 0; i < BUTTON_PINS.length; i++) {
+                            let value = Math.sin(now / 500 + i * 0.5) / 2 + 0.5;
+                            await this.led.setDutyCycle(i, value);
+                        }
+                        break;
+                    }
+
+                    case State.DRINKING_MODE: {
+                        for (let i = 0; i < BUTTON_PINS.length; i++) {
+                            if (BUTTON_DRINK_MODE === i) {
+                                let value = Math.sin(now / 100 + i * 0.3) / 2 + 0.5;
+                                await this.led.setDutyCycle(i, value);
+                            } else {
+                                await this.led.setDutyCycle(i, 0);
+                            }
+                        }
+                        break;
+                    }
+
+                    default: {
+                        for (let i = 0; i < BUTTON_PINS.length; i++) {
+                            await this.led.setDutyCycle(i, 0);
+                        }
+                        break;
+                    }
+                }
+            } catch (ex) {
+                console.error("Error in led driver", ex);
+            } finally {
+                await new Promise((e) => setTimeout(e, 1000 / FRAMES_PER_SECOND));
+            }
+        }
+    }
+
+    private async transitionState(newState: State) {
+        console.log(chalk.bold(chalk.cyan(`Transition to ${State[newState]}`)));
+
+        const now = new Date().getTime();
         try {
-            // await relays.setGpio(2, false);
+            switch (newState) {
+                case State.IDLE: {
+                    this.stopDrinkingModeAt = Number.MAX_SAFE_INTEGER;
+                    await this.relays.clearAll();
+                    break;
+                }
+
+                case State.DRINKING_MODE: {
+                    this.stopDrinkingModeAt = now + 30000;
+                    await this.relays.setGpio(RELAY_TOP, true);
+                    await this.relays.setGpio(RELAY_SODA_WATER, true);
+                    await this.relays.setGpio(RELAY_WATER, true);
+                    break;
+                }
+
+                default: {
+                    console.warn(chalk.red(`No transition implemented for ${State[newState]}`));
+                    break;
+                }
+            }
+
+            state = newState;
         } catch (ex) {
-            console.error("Error in event loop", ex);
-        } finally {
-            await new Promise((e) => setTimeout(e, 1000 / FRAMES_PER_SECOND));
+            console.error(chalk.bold(chalk.red(`Could not transition to ${State[newState]}`, ex)));
+            await this.relays.clearAll().catch((exx) => console.warn(chalk.red("Could not reset relays during transition fail"), exx));
+        }
+    }
+
+    private async eventLoop() {
+        console.log(chalk.green("Event loop started"));
+
+        let prevFlowCounter = 0;
+        let prevButtonStates = BUTTON_PINS.map(() => false);
+
+        while (true) {
+            const now = new Date().getTime();
+            try {
+                let buttonStates = BUTTON_PINS.map((e) => !digitalRead(e));
+                let changedButtons = buttonStates.map((s, i) => s !== prevButtonStates[i]);
+                buttonStates.forEach((e, i) => (prevButtonStates[i] = e));
+
+                switch (state) {
+                    case State.IDLE: {
+                        if (changedButtons[BUTTON_DRINK_MODE] && buttonStates[BUTTON_DRINK_MODE]) {
+                            console.log(chalk.gray("Drinking mode button pressed"));
+                            await this.transitionState(State.DRINKING_MODE);
+                        }
+                        break;
+                    }
+
+                    case State.DRINKING_MODE: {
+                        if (changedButtons[BUTTON_DRINK_MODE] && buttonStates[BUTTON_DRINK_MODE]) {
+                            console.log(chalk.gray("Cancel drinking mode button pressed"));
+                            await this.transitionState(State.IDLE);
+                            break;
+                        }
+
+                        let flowCount = await this.flowCounter.getCounter();
+                        if (prevFlowCounter !== flowCount) {
+                            console.log(chalk.gray("Postpone drinking mode timeout"), chalk.magenta(flowCount - prevFlowCounter));
+                            // Still dispensing drinks, postpone stopping drinking mode
+                            prevFlowCounter = flowCount;
+                            this.stopDrinkingModeAt = now + 15000;
+                        }
+
+                        if (now >= this.stopDrinkingModeAt) {
+                            console.log(chalk.gray("Drinking mode timeout reached"));
+                            await this.transitionState(State.IDLE);
+                            break;
+                        }
+
+                        break;
+                    }
+
+                    default: {
+                        console.warn(chalk.red(`No tick implemented for ${state}`));
+                        break;
+                    }
+                }
+            } catch (ex) {
+                console.error("Error in event loop", ex);
+            } finally {
+                await new Promise((e) => setTimeout(e, 1000 / FRAMES_PER_SECOND));
+            }
         }
     }
 }

@@ -51,20 +51,30 @@ const FRAMES_PER_SECOND = 120;
 enum State {
     IDLE = 0,
     DRINKING_MODE = 1,
+    CLEAN_MODE = 2,
 }
 
 let state = State.IDLE;
 
-// let drinkingMode = false;
-
 const BUTTON_DRINK_MODE = 3;
+const BUTTON_CLEAN_MODE = 4;
 
 class CocktailMachine {
-    private stopDrinkingModeAt = Number.MAX_SAFE_INTEGER;
     private relays!: MultiPCF8575Driver;
     private ads!: ADS1115;
     private led!: PCA9685Driver;
     private flowCounter!: CounterDriver;
+
+    // Drinking mode state
+    private stopDrinkingModeAt = Number.MAX_SAFE_INTEGER;
+    private startDrinkingModeFlowCount = 0;
+
+    // Cleaning state
+    private startCleanFlowCount = 0;
+    private lastFlowAt = Number.MAX_SAFE_INTEGER;
+    private startFlushingWaterAt = Number.MAX_SAFE_INTEGER;
+    private startFlushingAirAt = Number.MAX_SAFE_INTEGER;
+    private stopFlushingAt = Number.MAX_SAFE_INTEGER;
 
     constructor(private bus: i2c.PromisifiedBus) {}
 
@@ -110,15 +120,16 @@ class CocktailMachine {
                 switch (state) {
                     case State.IDLE: {
                         for (let i = 0; i < BUTTON_PINS.length; i++) {
-                            let value = Math.sin(now / 500 + i * 0.5) / 2 + 0.5;
+                            let value = Math.sin(now / 500 + i * 0.7) / 2 + 0.5;
                             await this.led.setDutyCycle(i, value);
                         }
                         break;
                     }
 
+                    case State.CLEAN_MODE:
                     case State.DRINKING_MODE: {
                         for (let i = 0; i < BUTTON_PINS.length; i++) {
-                            if (BUTTON_DRINK_MODE === i) {
+                            if ((state === State.DRINKING_MODE ? BUTTON_DRINK_MODE : BUTTON_CLEAN_MODE) === i) {
                                 let value = Math.sin(now / 100 + i * 0.3) / 2 + 0.5;
                                 await this.led.setDutyCycle(i, value);
                             } else {
@@ -157,6 +168,23 @@ class CocktailMachine {
 
                 case State.DRINKING_MODE: {
                     this.stopDrinkingModeAt = now + 30000;
+                    this.startDrinkingModeFlowCount = await this.flowCounter.getCounter();
+
+                    await this.relays.clearAll();
+                    await this.relays.setGpio(RELAY_TOP, true);
+                    await this.relays.setGpio(RELAY_SODA_WATER, true);
+                    await this.relays.setGpio(RELAY_WATER, true);
+                    break;
+                }
+
+                case State.CLEAN_MODE: {
+                    this.startFlushingWaterAt = now + 20000;
+                    this.startFlushingAirAt = Number.MAX_SAFE_INTEGER;
+                    this.stopFlushingAt = Number.MAX_SAFE_INTEGER;
+                    this.startCleanFlowCount = await this.flowCounter.getCounter();
+                    this.lastFlowAt = Number.MAX_SAFE_INTEGER;
+
+                    await this.relays.clearAll();
                     await this.relays.setGpio(RELAY_TOP, true);
                     await this.relays.setGpio(RELAY_SODA_WATER, true);
                     await this.relays.setGpio(RELAY_WATER, true);
@@ -195,19 +223,24 @@ class CocktailMachine {
                             console.log(chalk.gray("Drinking mode button pressed"));
                             await this.transitionState(State.DRINKING_MODE);
                         }
+
+                        if (changedButtons[BUTTON_CLEAN_MODE] && buttonStates[BUTTON_CLEAN_MODE]) {
+                            console.log(chalk.gray("Cleaning mode button pressed"));
+                            await this.transitionState(State.CLEAN_MODE);
+                        }
                         break;
                     }
 
                     case State.DRINKING_MODE: {
                         if (changedButtons[BUTTON_DRINK_MODE] && buttonStates[BUTTON_DRINK_MODE]) {
                             console.log(chalk.gray("Cancel drinking mode button pressed"));
-                            await this.transitionState(State.IDLE);
+                            await this.transitionState(State.CLEAN_MODE);
                             break;
                         }
 
                         let flowCount = await this.flowCounter.getCounter();
                         if (prevFlowCounter !== flowCount) {
-                            console.log(chalk.gray("Postpone drinking mode timeout"), chalk.magenta(flowCount - prevFlowCounter));
+                            console.log(chalk.gray("Postpone drinking mode timeout"), chalk.magenta(flowCount - this.startDrinkingModeFlowCount));
                             // Still dispensing drinks, postpone stopping drinking mode
                             prevFlowCounter = flowCount;
                             this.stopDrinkingModeAt = now + 15000;
@@ -215,6 +248,62 @@ class CocktailMachine {
 
                         if (now >= this.stopDrinkingModeAt) {
                             console.log(chalk.gray("Drinking mode timeout reached"));
+                            await this.transitionState(State.CLEAN_MODE);
+                            break;
+                        }
+
+                        break;
+                    }
+
+                    case State.CLEAN_MODE: {
+                        if (now < this.startFlushingWaterAt && this.startFlushingWaterAt !== Number.MAX_SAFE_INTEGER) {
+                            let flowCount = await this.flowCounter.getCounter();
+
+                            const MIN_NOZZLE_FLOW = 30;
+                            let flowDiff = flowCount - this.startCleanFlowCount;
+                            if (flowDiff > MIN_NOZZLE_FLOW) {
+                                if (!(prevFlowCounter - this.startCleanFlowCount > MIN_NOZZLE_FLOW)) {
+                                    console.log(chalk.gray("Nozzle was cleaned enough"));
+                                }
+
+                                // Enough flow was created to clean nozzle, wait for flow to stop
+                                if (now - this.lastFlowAt > 1000) {
+                                    // Start flushing water now
+                                    console.log(chalk.gray("Trigger water flush early because of nozzle flow"));
+                                    this.startFlushingWaterAt = now;
+                                }
+                            }
+
+                            if (prevFlowCounter !== flowCount) {
+                                console.log(chalk.gray("Clean flow created"), chalk.magenta(flowCount - this.startCleanFlowCount));
+                                this.lastFlowAt = now;
+                                prevFlowCounter = flowCount;
+                            }
+                        }
+
+                        if (now >= this.startFlushingWaterAt) {
+                            console.log(chalk.gray("Start flushing water"));
+                            this.startFlushingAirAt = now + 3000;
+                            this.startFlushingWaterAt = Number.MAX_SAFE_INTEGER;
+
+                            await this.relays.setGpio(RELAY_DISPOSE_TOP, true);
+                        }
+
+                        if (now >= this.startFlushingAirAt) {
+                            console.log(chalk.gray("Start flushing air"));
+                            this.stopFlushingAt = now + 4000;
+                            this.startFlushingAirAt = Number.MAX_SAFE_INTEGER;
+
+                            await this.relays.setGpio(RELAY_WATER, false);
+                            await this.relays.setGpio(RELAY_SODA_WATER, false);
+
+                            await this.relays.setGpio(RELAY_SODA_AIR0, true);
+                            await this.relays.setGpio(RELAY_SODA_AIR1, true);
+                        }
+
+                        if (now >= this.stopFlushingAt) {
+                            console.log(chalk.gray("Stop flushing"));
+                            this.stopFlushingAt = Number.MAX_SAFE_INTEGER;
                             await this.transitionState(State.IDLE);
                             break;
                         }

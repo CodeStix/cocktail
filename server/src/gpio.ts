@@ -9,6 +9,10 @@ export class PCF8575Driver {
         this._cachedGpioBits = null;
     }
 
+    public getGpioCount() {
+        return 16;
+    }
+
     public async getAllGpio(): Promise<number> {
         if (this._cachedGpioBits === null) {
             let buffer = Buffer.alloc(2);
@@ -46,5 +50,27 @@ export class PCF8575Driver {
         else bits = bits & ~(1 << pos);
 
         await this.setAllGpio(bits);
+    }
+}
+
+export class RelayDriver {
+    constructor(private drivers: PCF8575Driver[]) {}
+
+    async clearAll() {
+        for (let d of this.drivers) {
+            await d.setAllGpio(0);
+        }
+    }
+
+    async setGpio(num: number, value: boolean) {
+        for (let d of this.drivers) {
+            let dc = d.getGpioCount();
+            if (num < dc) {
+                await d.setGpio(num, value);
+                return;
+            }
+            num -= dc;
+        }
+        throw new Error("setGpio out of range");
     }
 }

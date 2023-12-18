@@ -1,5 +1,5 @@
 import i2c from "i2c-bus";
-import { PCF8575Driver } from "./gpio";
+import { PCF8575Driver, RelayDriver } from "./gpio";
 import { PCA9685Driver } from "./pwm";
 import { ADS1115 } from "./ads";
 import { digitalRead, digitalWrite, pinMode, PinMode, pullUpDnControl, PullUpDownMode } from "tinker-gpio";
@@ -164,9 +164,65 @@ async function testI2C() {
 }
 
 async function main() {
-    console.log("starting up");
+    console.time(chalk.green("Setup done"));
 
-    await testI2C();
+    let bus = await i2c.openPromisified(6);
+    void ledDriverLoop(bus);
+    void eventLoop(bus);
+
+    console.timeEnd(chalk.green("Setup done"));
+}
+
+const FRAMES_PER_SECOND = 120;
+
+async function ledDriverLoop(i2c: i2c.PromisifiedBus) {
+    console.time(chalk.green("Led driver loop started"));
+
+    let led = new PCA9685Driver(i2c, 0x40);
+    await led.initialize();
+
+    console.timeEnd(chalk.green("Led driver loop started"));
+
+    while (true) {
+        try {
+            // Drive leds here
+        } catch (ex) {
+            console.error("Error in led driver", ex);
+        } finally {
+            await new Promise((e) => setTimeout(e, 1000 / FRAMES_PER_SECOND));
+        }
+    }
+}
+
+async function eventLoop(i2c: i2c.PromisifiedBus) {
+    console.time(chalk.green("Event loop started"));
+
+    BUTTON_PINS.forEach((e) => {
+        pinMode(e, PinMode.INPUT);
+        pullUpDnControl(e, PullUpDownMode.UP);
+    });
+
+    let relay = new PCF8575Driver(i2c, 32);
+    let relay2 = new PCF8575Driver(i2c, 33);
+    let relays = new RelayDriver([relay, relay2]);
+    await relays.clearAll();
+
+    let ads = new ADS1115(i2c, 0x48);
+    await ads.initialize();
+
+    let flowCounter = new CounterDriver(i2c, 0x33);
+
+    console.timeEnd(chalk.green("Event loop started"));
+
+    while (true) {
+        try {
+            // await relays.setGpio(2, false);
+        } catch (ex) {
+            console.error("Error in event loop", ex);
+        } finally {
+            await new Promise((e) => setTimeout(e, 1000 / FRAMES_PER_SECOND));
+        }
+    }
 }
 
 main();

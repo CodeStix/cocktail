@@ -4,8 +4,37 @@ import { PCA9685Driver } from "./pwm";
 import { ADS1115 } from "./ads";
 import { digitalRead, digitalWrite, pinMode, PinMode, pullUpDnControl, PullUpDownMode } from "tinker-gpio";
 import chalk from "chalk";
+import { CounterDriver } from "./counter";
 
 const BUTTON_PINS = [15, 16, 1, 6, 10, 31];
+
+const RELAY_SODA_WATER = 0;
+const RELAY_SODA0 = 1;
+const RELAY_SODA1 = 2;
+const RELAY_SODA2 = 3;
+const RELAY_SODA3 = 4;
+const RELAY_SODA4 = 5;
+const RELAY_SODA_AIR0 = 6;
+const RELAY_SODA_AIR1 = 7;
+
+const RELAY_DISPOSE_TOP = 14;
+const RELAY_TOP = 15;
+const RELAY_WATER = 16;
+const RELAY_AIR_SODA0 = 17;
+const RELAY_AIR_SODA1 = 18;
+const RELAY_AIR_SODA2 = 19;
+const RELAY_AIR_SODA3 = 20;
+const RELAY_AIR_SODA4 = 21;
+const RELAY_AIR = 22;
+const RELAY_DISPOSE_AIR = 23;
+const PERIS0_SUCK = 24;
+const PERIS0_BLOW = 25;
+const PERIS1_SUCK = 26;
+const PERIS1_BLOW = 27;
+const PERIS2_SUCK = 28;
+const PERIS2_BLOW = 29;
+const PERIS3_SUCK = 30;
+const PERIS3_BLOW = 31;
 
 async function testI2C() {
     let bus = await i2c.openPromisified(6);
@@ -13,6 +42,7 @@ async function testI2C() {
     let relay2 = new PCF8575Driver(bus, 33);
     let led = new PCA9685Driver(bus, 0x40);
     let ads = new ADS1115(bus, 0x48);
+    let flowCounter = new CounterDriver(bus, 0x33);
 
     BUTTON_PINS.forEach((e) => {
         pinMode(e, PinMode.INPUT);
@@ -28,10 +58,14 @@ async function testI2C() {
 
     let currentRelay = 0;
     let highlighedButton = -1;
-    let buttonState = false;
+    let button1State = false;
+    let buttonStates = BUTTON_PINS.map(() => false);
+    let sodaState = false;
+    let prevSodaFlowState = false;
+    let prevSodaFlowTimes = [];
     while (true) {
         for (let i = 0; i < 6; i++) {
-            if (highlighedButton === i || highlighedButton === -1) {
+            if (i < 6 && (highlighedButton === i || highlighedButton === -1)) {
                 let value = Math.sin(new Date().getTime() / (highlighedButton === i ? 100 : 250) + i * 0.3) / 2 + 0.5;
                 await led.setDutyCycle(i, value);
             } else {
@@ -43,23 +77,50 @@ async function testI2C() {
         for (let i = 0; i < BUTTON_PINS.length; i++) {
             let state = !digitalRead(BUTTON_PINS[i]);
             if (state) {
-                console.log("button", i, chalk.green("pressed"));
+                // console.log("button", i, chalk.green("pressed"));
                 highlighedButton = i;
             }
 
-            if (i == 0 && state !== buttonState) {
-                buttonState = state;
-                if (buttonState) {
-                    if (currentRelay < 16) await relay.setGpio(currentRelay, false);
-                    else await relay2.setGpio(currentRelay - 16, false);
+            if (state != buttonStates[i]) {
+                buttonStates[i] = state;
 
-                    console.log("next relay");
-                    if (++currentRelay > 32) {
-                        currentRelay = 0;
+                if (i == 0) {
+                    await relay.setGpio(RELAY_DISPOSE_TOP, state);
+
+                    // if (button0State) {
+
+                    //     if (currentRelay < 16) await relay.setGpio(currentRelay, false);
+                    //     else await relay2.setGpio(currentRelay - 16, false);
+
+                    //     if (++currentRelay >= 32) {
+                    //         currentRelay = 0;
+                    //     }
+
+                    //     console.log("set relay", currentRelay);
+
+                    //     if (currentRelay < 16) await relay.setGpio(currentRelay, true);
+                    //     else await relay2.setGpio(currentRelay - 16, true);
+                    // }
+                } else if (i == 1) {
+                    button1State = state;
+                    if (button1State) {
+                        sodaState = !sodaState;
+
+                        await relay.setGpio(RELAY_TOP, sodaState);
+                        // await relay.setGpio(RELAY_SODA0, sodaState);
+                        // await relay2.setGpio(RELAY_DISPOSE_AIR - 16, sodaState);
+                        await relay.setGpio(RELAY_SODA_WATER, sodaState);
+                        await relay2.setGpio(RELAY_WATER - 16, sodaState);
+
+                        console.log("soda", sodaState);
                     }
+                } else if (i == 2) {
+                    await relay.setGpio(RELAY_TOP, state);
+                    await relay.setGpio(RELAY_DISPOSE_TOP, state);
+                    await relay.setGpio(RELAY_SODA_AIR0, state);
+                    await relay.setGpio(RELAY_SODA_AIR1, state);
 
-                    if (currentRelay < 16) await relay.setGpio(currentRelay, true);
-                    else await relay2.setGpio(currentRelay - 16, true);
+                    // await relay2.setGpio(PERIS0_SUCK - 16, state);
                 }
             }
         }
@@ -71,6 +132,32 @@ async function testI2C() {
         // await relay.setGpio(0);
 
         let pressureVoltage = await ads.analogRead(0);
+        let waterFlowVoltage = await ads.analogRead(1);
+        let sodaFlowVoltage = await ads.analogRead(2);
+        console.log("counter", await flowCounter.getCounter());
+
+        let sodaFlowState = false; //sodaFlowVoltage > 2.5;
+        // console.log(sodaFlowVoltage > 0.25);
+        if (sodaFlowState !== prevSodaFlowState) {
+            prevSodaFlowState = sodaFlowState;
+            if (sodaFlowState) {
+                // Rising
+                prevSodaFlowTimes.push(new Date().getTime());
+                while (prevSodaFlowTimes.length > 10) {
+                    prevSodaFlowTimes.shift();
+                }
+
+                let sum = 0;
+                for (let i = 0; i < prevSodaFlowTimes.length - 1; i++) {
+                    sum += prevSodaFlowTimes[i] - prevSodaFlowTimes[i + 1];
+                }
+                let avg = sum / (prevSodaFlowTimes.length - 1);
+                // console.log("Flow", (avg / 1000).toFixed(3), "seconds per rotation");
+            }
+        }
+
+        // console.log("sodaFlowVoltage", sodaFlowVoltage.toFixed(6));
+        // console.log(pressureVoltage.toFixed(4), waterFlowVoltage.toFixed(4), sodaFlowVoltage.toFixed(4));
 
         await new Promise((e) => setTimeout(e, 1000 / 120));
     }

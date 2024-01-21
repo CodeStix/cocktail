@@ -49,20 +49,26 @@ const FRAMES_PER_SECOND = 120;
 
 enum State {
     IDLE = 0,
-    WATER = 1,
-    CLEAN = 2,
+    WATER,
+    SODA_WATER,
+    CLEAN,
     // DRINKING_MODE = 1,
     // CLEAN_MODE = 2,
 }
 
 let state = State.IDLE;
 
+const BUTTON_SODA_WATER = 3;
 const BUTTON_WATER = 4;
 const BUTTON_CLEAN = 5;
 
-const CLEAN_SUCK_WATER_PULSE_DURATION = 100;
-const CLEAN_SUCK_WATER_PULSE_COUNT = 3;
+const CLEAN_SUCK_WATER_PULSE_DURATION = 500;
+const CLEAN_SUCK_WATER_PULSE_COUNT = 5;
 const CLEAN_SUCK_WATER_PULSE_INTERVAL = 800;
+
+const SODA_CO2_PULSE_DURATION = 1500;
+const SODA_CO2_PULSE_COUNT = 5;
+const SODA_CO2_PULSE_INTERVAL = 3000;
 
 class CocktailMachine {
     private relays!: MultiPCF8575Driver;
@@ -72,11 +78,29 @@ class CocktailMachine {
 
     // Clean mode
     private suckWaterPulseRemainingCount = CLEAN_SUCK_WATER_PULSE_COUNT;
+    // private startSuckPulseAt = Number.MAX_SAFE_INTEGER;
+    // private stopSuckPulseAt = Number.MAX_SAFE_INTEGER;
+    // private stopMotorAt = Number.MAX_SAFE_INTEGER;
+    // private stopFlushingAt = Number.MAX_SAFE_INTEGER;
+
     private startFlushingAt = Number.MAX_SAFE_INTEGER;
     private stopFlushingAt = Number.MAX_SAFE_INTEGER;
     private startSuckingAt = Number.MAX_SAFE_INTEGER;
     private startSuckWaterAt = Number.MAX_SAFE_INTEGER;
     private stopSuckWaterAt = Number.MAX_SAFE_INTEGER;
+
+    // Water mode
+    private activeSuckValve = -1;
+    private previousFlowCounter = Number.MAX_SAFE_INTEGER;
+    private stopPrepareSuckAt = Number.MAX_SAFE_INTEGER;
+    private stopSuckSyrupAt = Number.MAX_SAFE_INTEGER;
+
+    // Soda mode
+    private repressurizing = false;
+    private stopFillingAt = Number.MAX_SAFE_INTEGER;
+    private co2InjectionsRemaining = 0;
+    private startInjectingCo2At = Number.MAX_SAFE_INTEGER;
+    private stopInjectingCo2At = Number.MAX_SAFE_INTEGER;
 
     constructor(private bus: i2c.PromisifiedBus) {}
 
@@ -136,6 +160,14 @@ class CocktailMachine {
                         break;
                     }
 
+                    case State.SODA_WATER: {
+                        for (let i = 0; i < BUTTON_PINS.length; i++) {
+                            let value = Math.sin(now / 500) / 2 + 0.5;
+                            await this.led.setDutyCycle(i, [BUTTON_WATER, BUTTON_SODA_WATER].includes(i) ? value : 0);
+                        }
+                        break;
+                    }
+
                     case State.CLEAN: {
                         for (let i = 0; i < BUTTON_PINS.length; i++) {
                             let value = Math.sin(now / 100) / 2 + 0.5;
@@ -172,14 +204,40 @@ class CocktailMachine {
 
                 case State.WATER: {
                     await this.relays.clearAll();
-                    await this.relays.setGpio(VALVE_WATER, true);
-                    await this.relays.setGpio(VALVE_WATER_MASTER, true);
+
+                    this.activeSuckValve = VALVE_SUCK0;
+                    if (this.activeSuckValve >= 0) {
+                        await this.relays.setGpio(this.activeSuckValve, true);
+                        await this.relays.setGpio(MOTOR_SUCK, true);
+                        await this.relays.setGpio(VALVE_DISPOSE, true);
+                        this.stopPrepareSuckAt = now + 400;
+                    } else {
+                        await this.relays.setGpio(VALVE_WATER, true);
+                        await this.relays.setGpio(VALVE_WATER_MASTER, true);
+                        this.stopPrepareSuckAt = Number.MAX_SAFE_INTEGER;
+                    }
+                    this.previousFlowCounter = await this.flowCounter.getCounter();
+                    this.stopSuckSyrupAt = Number.MAX_SAFE_INTEGER;
+                    break;
+                }
+
+                case State.SODA_WATER: {
+                    await this.relays.clearAll();
+                    await this.relays.setGpio(VALVE_SODA_RELEASE, true);
+                    await this.relays.setGpio(VALVE_CO2, true);
+                    this.repressurizing = false;
+                    this.stopFillingAt = Number.MAX_SAFE_INTEGER;
+                    this.co2InjectionsRemaining = SODA_CO2_PULSE_COUNT;
+                    this.startInjectingCo2At = Number.MAX_SAFE_INTEGER;
+                    this.stopInjectingCo2At = Number.MAX_SAFE_INTEGER;
                     break;
                 }
 
                 case State.CLEAN: {
                     await this.relays.clearAll();
                     await this.relays.setGpio(VALVE_DISPOSE, true);
+                    await this.relays.setGpio(VALVE_WATER_MASTER, true);
+
                     this.startFlushingAt = now + 500;
                     this.stopFlushingAt = now + 7000;
                     this.startSuckingAt = this.startFlushingAt + 1000;
@@ -227,6 +285,11 @@ class CocktailMachine {
                             this.transitionState(State.WATER);
                             break;
                         }
+                        if (changedButtons[BUTTON_SODA_WATER] && buttonStates[BUTTON_SODA_WATER]) {
+                            console.log(chalk.gray("Soda water button pressed"));
+                            this.transitionState(State.SODA_WATER);
+                            break;
+                        }
                         if (changedButtons[BUTTON_CLEAN] && buttonStates[BUTTON_CLEAN]) {
                             console.log(chalk.gray("Clean button pressed"));
                             this.transitionState(State.CLEAN);
@@ -262,8 +325,97 @@ class CocktailMachine {
                     }
 
                     case State.WATER: {
+                        let flow = await this.flowCounter.getCounter();
+
                         if (changedButtons[BUTTON_WATER] && buttonStates[BUTTON_WATER]) {
                             console.log(chalk.gray("Water button pressed"));
+                            this.transitionState(this.activeSuckValve >= 0 && false ? State.CLEAN : State.IDLE);
+                            break;
+                        }
+
+                        if (now >= this.stopPrepareSuckAt) {
+                            this.stopPrepareSuckAt = Number.MAX_SAFE_INTEGER;
+                            console.log(chalk.gray("Stop preparing syrup"));
+                            await this.relays.setGpio(MOTOR_SUCK, false);
+                            await this.relays.setGpio(VALVE_DISPOSE, false);
+                            await this.relays.setGpio(VALVE_WATER, true);
+                            await this.relays.setGpio(VALVE_WATER_MASTER, true);
+                        }
+
+                        if (this.activeSuckValve >= 0) {
+                            if (flow - this.previousFlowCounter > 45) {
+                                console.log(chalk.gray("Flow counter", flow));
+                                this.previousFlowCounter = flow;
+                                this.stopSuckSyrupAt = now + 400;
+                                console.log(chalk.gray("Dispense syrup"));
+                                await this.relays.setGpio(MOTOR_SUCK, true);
+                            } else if (now >= this.stopSuckSyrupAt) {
+                                this.stopSuckSyrupAt = Number.MAX_SAFE_INTEGER;
+                                console.log(chalk.gray("Stop dispense syrup"));
+                                await this.relays.setGpio(MOTOR_SUCK, false);
+                            }
+                        }
+
+                        break;
+                    }
+
+                    case State.SODA_WATER: {
+                        let pressure = await this.ads.analogRead(0);
+                        // console.log(chalk.gray("Pressure", pressure));
+
+                        if (changedButtons[BUTTON_WATER] && buttonStates[BUTTON_WATER]) {
+                            // if (!this.repressurizing) {
+                            console.log(chalk.gray("Begin filling"));
+                            await this.relays.setGpio(VALVE_CO2, false);
+                            await this.relays.setGpio(VALVE_SODA_RELEASE, false);
+                            await this.relays.setGpio(VALVE_SODA_WATER, true);
+                            await this.relays.setGpio(VALVE_CO2_RELEASE, true);
+                            await this.relays.setGpio(VALVE_WATER_MASTER, true);
+
+                            this.stopFillingAt = now + 8000;
+                            this.co2InjectionsRemaining = SODA_CO2_PULSE_COUNT;
+                            this.startInjectingCo2At = this.stopFillingAt + 1000;
+                            this.stopInjectingCo2At = Number.MAX_SAFE_INTEGER;
+                            // } else {
+                            //     console.log(chalk.gray("Stop pressurizing"));
+                            //     await this.relays.setGpio(VALVE_SODA_RELEASE, true);
+                            // }
+                        }
+
+                        if (now >= this.stopFillingAt) {
+                            this.stopFillingAt = Number.MAX_SAFE_INTEGER;
+                            console.log(chalk.gray("Stop filling"));
+                            await this.relays.setGpio(VALVE_CO2, false);
+                            await this.relays.setGpio(VALVE_WATER_MASTER, false);
+                            await this.relays.setGpio(VALVE_SODA_RELEASE, false);
+                            await this.relays.setGpio(VALVE_SODA_WATER, false);
+                            await this.relays.setGpio(VALVE_CO2_RELEASE, false);
+                        }
+                        if (now >= this.startInjectingCo2At) {
+                            this.stopInjectingCo2At = now + SODA_CO2_PULSE_DURATION;
+                            this.co2InjectionsRemaining--;
+                            if (this.co2InjectionsRemaining > 0) {
+                                this.startInjectingCo2At = now + SODA_CO2_PULSE_INTERVAL;
+                            } else {
+                                this.startInjectingCo2At = Number.MAX_SAFE_INTEGER;
+                            }
+                            console.log(chalk.gray("Inject CO2", this.co2InjectionsRemaining, "remaining"));
+                            await this.relays.setGpio(VALVE_CO2, true);
+                        }
+                        if (now >= this.stopInjectingCo2At) {
+                            this.stopInjectingCo2At = Number.MAX_SAFE_INTEGER;
+                            console.log(chalk.gray("Stop inject CO2"));
+                            await this.relays.setGpio(VALVE_CO2, false);
+
+                            if (this.co2InjectionsRemaining <= 0) {
+                                console.log(chalk.gray("Open dispense valve"));
+                                await this.relays.setGpio(VALVE_SODA_RELEASE, true);
+                                await this.relays.setGpio(VALVE_CO2, true);
+                            }
+                        }
+
+                        if (changedButtons[BUTTON_SODA_WATER] && buttonStates[BUTTON_SODA_WATER]) {
+                            console.log(chalk.gray("Soda water button pressed"));
                             this.transitionState(State.IDLE);
                             break;
                         }

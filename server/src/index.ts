@@ -50,6 +50,7 @@ const FRAMES_PER_SECOND = 120;
 enum State {
     IDLE = 0,
     WATER = 1,
+    CLEAN = 2,
     // DRINKING_MODE = 1,
     // CLEAN_MODE = 2,
 }
@@ -57,12 +58,25 @@ enum State {
 let state = State.IDLE;
 
 const BUTTON_WATER = 4;
+const BUTTON_CLEAN = 5;
+
+const CLEAN_SUCK_WATER_PULSE_DURATION = 100;
+const CLEAN_SUCK_WATER_PULSE_COUNT = 3;
+const CLEAN_SUCK_WATER_PULSE_INTERVAL = 800;
 
 class CocktailMachine {
     private relays!: MultiPCF8575Driver;
     private ads!: ADS1115;
     private led!: PCA9685Driver;
     private flowCounter!: CounterDriver;
+
+    // Clean mode
+    private suckWaterPulseRemainingCount = CLEAN_SUCK_WATER_PULSE_COUNT;
+    private startFlushingAt = Number.MAX_SAFE_INTEGER;
+    private stopFlushingAt = Number.MAX_SAFE_INTEGER;
+    private startSuckingAt = Number.MAX_SAFE_INTEGER;
+    private startSuckWaterAt = Number.MAX_SAFE_INTEGER;
+    private stopSuckWaterAt = Number.MAX_SAFE_INTEGER;
 
     constructor(private bus: i2c.PromisifiedBus) {}
 
@@ -116,9 +130,18 @@ class CocktailMachine {
 
                     case State.WATER: {
                         for (let i = 0; i < BUTTON_PINS.length; i++) {
-                            let value = Math.sin(now / 200 + i * 0.7) / 2 + 0.5;
+                            let value = Math.sin(now / 100) / 2 + 0.5;
                             await this.led.setDutyCycle(i, i === BUTTON_WATER ? value : 0);
                         }
+                        break;
+                    }
+
+                    case State.CLEAN: {
+                        for (let i = 0; i < BUTTON_PINS.length; i++) {
+                            let value = Math.sin(now / 100) / 2 + 0.5;
+                            await this.led.setDutyCycle(i, i === BUTTON_CLEAN ? value : 0);
+                        }
+                        break;
                     }
 
                     default: {
@@ -151,6 +174,18 @@ class CocktailMachine {
                     await this.relays.clearAll();
                     await this.relays.setGpio(VALVE_WATER, true);
                     await this.relays.setGpio(VALVE_WATER_MASTER, true);
+                    break;
+                }
+
+                case State.CLEAN: {
+                    await this.relays.clearAll();
+                    await this.relays.setGpio(VALVE_DISPOSE, true);
+                    this.startFlushingAt = now + 500;
+                    this.stopFlushingAt = now + 7000;
+                    this.startSuckingAt = this.startFlushingAt + 1000;
+                    this.startSuckWaterAt = this.startSuckingAt + 1000;
+                    this.stopSuckWaterAt = Number.MAX_SAFE_INTEGER;
+                    this.suckWaterPulseRemainingCount = CLEAN_SUCK_WATER_PULSE_COUNT;
                     break;
                 }
 
@@ -192,6 +227,11 @@ class CocktailMachine {
                             this.transitionState(State.WATER);
                             break;
                         }
+                        if (changedButtons[BUTTON_CLEAN] && buttonStates[BUTTON_CLEAN]) {
+                            console.log(chalk.gray("Clean button pressed"));
+                            this.transitionState(State.CLEAN);
+                            break;
+                        }
 
                         if (changedButtons[0] && buttonStates[0]) {
                             console.log(chalk.gray(`Relay off -> ${currentRelay}`));
@@ -227,6 +267,52 @@ class CocktailMachine {
                             this.transitionState(State.IDLE);
                             break;
                         }
+                        break;
+                    }
+
+                    case State.CLEAN: {
+                        if (changedButtons[BUTTON_CLEAN] && buttonStates[BUTTON_CLEAN]) {
+                            console.log(chalk.gray("Clean button pressed"));
+                            this.transitionState(State.IDLE);
+                            break;
+                        }
+
+                        if (now >= this.startFlushingAt) {
+                            this.startFlushingAt = Number.MAX_SAFE_INTEGER;
+                            console.log(chalk.gray("Start flushing"));
+                            await this.relays.setGpio(VALVE_WATER, true);
+                            await this.relays.setGpio(VALVE_WATER_MASTER, true);
+                        }
+                        if (now >= this.startSuckingAt) {
+                            this.startSuckingAt = Number.MAX_SAFE_INTEGER;
+                            console.log(chalk.gray("Start sucking"));
+                            await this.relays.setGpio(MOTOR_SUCK, true);
+                        }
+                        if (now >= this.startSuckWaterAt) {
+                            this.suckWaterPulseRemainingCount--;
+                            this.stopSuckWaterAt = this.startSuckWaterAt + CLEAN_SUCK_WATER_PULSE_DURATION;
+                            this.startSuckWaterAt = this.startSuckWaterAt + CLEAN_SUCK_WATER_PULSE_INTERVAL;
+                            console.log(chalk.gray(`Start water suck pulse, ${this.suckWaterPulseRemainingCount} remaining`));
+                            await this.relays.setGpio(VALVE_SUCK_CLEAN, true);
+                        }
+                        if (now >= this.stopSuckWaterAt) {
+                            this.stopSuckWaterAt = Number.MAX_SAFE_INTEGER;
+                            console.log(chalk.gray("Stop suck water pulse"));
+                            await this.relays.setGpio(VALVE_SUCK_CLEAN, false);
+                            if (this.suckWaterPulseRemainingCount == 0) {
+                                console.log(chalk.gray("All pulses done, stop sucking"));
+                                this.startSuckWaterAt = Number.MAX_SAFE_INTEGER;
+                                await this.relays.setGpio(MOTOR_SUCK, false);
+                                break;
+                            }
+                        }
+                        if (now >= this.stopFlushingAt) {
+                            this.stopFlushingAt = Number.MAX_SAFE_INTEGER;
+                            console.log(chalk.gray("Stopping flushing, transition to idle"));
+                            this.transitionState(State.IDLE);
+                            break;
+                        }
+
                         break;
                     }
 

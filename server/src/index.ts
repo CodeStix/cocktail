@@ -77,17 +77,18 @@ class CocktailMachine {
     private flowCounter!: CounterDriver;
 
     // Clean mode
-    private suckWaterPulseRemainingCount = CLEAN_SUCK_WATER_PULSE_COUNT;
-    // private startSuckPulseAt = Number.MAX_SAFE_INTEGER;
-    // private stopSuckPulseAt = Number.MAX_SAFE_INTEGER;
-    // private stopMotorAt = Number.MAX_SAFE_INTEGER;
-    // private stopFlushingAt = Number.MAX_SAFE_INTEGER;
-
-    private startFlushingAt = Number.MAX_SAFE_INTEGER;
+    // private suckWaterPulseRemainingCount = CLEAN_SUCK_WATER_PULSE_COUNT;
+    private startSuckPulseAt = Number.MAX_SAFE_INTEGER;
+    private stopSuckPulseAt = Number.MAX_SAFE_INTEGER;
+    private openSuckWaterAt = Number.MAX_SAFE_INTEGER;
+    private stopMotorAt = Number.MAX_SAFE_INTEGER;
     private stopFlushingAt = Number.MAX_SAFE_INTEGER;
-    private startSuckingAt = Number.MAX_SAFE_INTEGER;
-    private startSuckWaterAt = Number.MAX_SAFE_INTEGER;
-    private stopSuckWaterAt = Number.MAX_SAFE_INTEGER;
+
+    // private startFlushingAt = Number.MAX_SAFE_INTEGER;
+    // private stopFlushingAt = Number.MAX_SAFE_INTEGER;
+    // private startSuckingAt = Number.MAX_SAFE_INTEGER;
+    // private startSuckWaterAt = Number.MAX_SAFE_INTEGER;
+    // private stopSuckWaterAt = Number.MAX_SAFE_INTEGER;
 
     // Water mode
     private activeSuckValve = -1;
@@ -237,13 +238,13 @@ class CocktailMachine {
                     await this.relays.clearAll();
                     await this.relays.setGpio(VALVE_DISPOSE, true);
                     await this.relays.setGpio(VALVE_WATER_MASTER, true);
+                    await this.relays.setGpio(MOTOR_SUCK, true);
 
-                    this.startFlushingAt = now + 500;
-                    this.stopFlushingAt = now + 7000;
-                    this.startSuckingAt = this.startFlushingAt + 1000;
-                    this.startSuckWaterAt = this.startSuckingAt + 1000;
-                    this.stopSuckWaterAt = Number.MAX_SAFE_INTEGER;
-                    this.suckWaterPulseRemainingCount = CLEAN_SUCK_WATER_PULSE_COUNT;
+                    this.startSuckPulseAt = now + 500;
+                    this.stopSuckPulseAt = this.startSuckPulseAt + 100;
+                    this.openSuckWaterAt = this.stopSuckPulseAt + 1000;
+                    this.stopMotorAt = this.openSuckWaterAt + 4000;
+                    this.stopFlushingAt = this.stopMotorAt + 4000;
                     break;
                 }
 
@@ -326,6 +327,7 @@ class CocktailMachine {
 
                     case State.WATER: {
                         let flow = await this.flowCounter.getCounter();
+                        // console.log(chalk.gray("Flow", flow));
 
                         if (changedButtons[BUTTON_WATER] && buttonStates[BUTTON_WATER]) {
                             console.log(chalk.gray("Water button pressed"));
@@ -343,10 +345,10 @@ class CocktailMachine {
                         }
 
                         if (this.activeSuckValve >= 0) {
-                            if (flow - this.previousFlowCounter > 45) {
+                            if (flow - this.previousFlowCounter > 6000) {
                                 console.log(chalk.gray("Flow counter", flow));
                                 this.previousFlowCounter = flow;
-                                this.stopSuckSyrupAt = now + 400;
+                                this.stopSuckSyrupAt = now + 200;
                                 console.log(chalk.gray("Dispense syrup"));
                                 await this.relays.setGpio(MOTOR_SUCK, true);
                             } else if (now >= this.stopSuckSyrupAt) {
@@ -429,35 +431,65 @@ class CocktailMachine {
                             break;
                         }
 
-                        if (now >= this.startFlushingAt) {
-                            this.startFlushingAt = Number.MAX_SAFE_INTEGER;
-                            console.log(chalk.gray("Start flushing"));
-                            await this.relays.setGpio(VALVE_WATER, true);
-                            await this.relays.setGpio(VALVE_WATER_MASTER, true);
-                        }
-                        if (now >= this.startSuckingAt) {
-                            this.startSuckingAt = Number.MAX_SAFE_INTEGER;
-                            console.log(chalk.gray("Start sucking"));
-                            await this.relays.setGpio(MOTOR_SUCK, true);
-                        }
-                        if (now >= this.startSuckWaterAt) {
-                            this.suckWaterPulseRemainingCount--;
-                            this.stopSuckWaterAt = this.startSuckWaterAt + CLEAN_SUCK_WATER_PULSE_DURATION;
-                            this.startSuckWaterAt = this.startSuckWaterAt + CLEAN_SUCK_WATER_PULSE_INTERVAL;
-                            console.log(chalk.gray(`Start water suck pulse, ${this.suckWaterPulseRemainingCount} remaining`));
+                        // if (now >= this.startFlushingAt) {
+                        //     this.startFlushingAt = Number.MAX_SAFE_INTEGER;
+                        //     console.log(chalk.gray("Start flushing"));
+                        //     await this.relays.setGpio(VALVE_WATER, true);
+                        //     await this.relays.setGpio(VALVE_WATER_MASTER, true);
+                        // }
+                        // if (now >= this.startSuckingAt) {
+                        //     this.startSuckingAt = Number.MAX_SAFE_INTEGER;
+                        //     console.log(chalk.gray("Start sucking"));
+                        //     await this.relays.setGpio(MOTOR_SUCK, true);
+                        // }
+                        // if (now >= this.startSuckWaterAt) {
+                        //     this.suckWaterPulseRemainingCount--;
+                        //     this.stopSuckWaterAt = this.startSuckWaterAt + CLEAN_SUCK_WATER_PULSE_DURATION;
+                        //     this.startSuckWaterAt = this.startSuckWaterAt + CLEAN_SUCK_WATER_PULSE_INTERVAL;
+                        //     console.log(chalk.gray(`Start water suck pulse, ${this.suckWaterPulseRemainingCount} remaining`));
+                        //     await this.relays.setGpio(VALVE_SUCK_CLEAN, true);
+                        // }
+                        // if (now >= this.stopSuckWaterAt) {
+                        //     this.stopSuckWaterAt = Number.MAX_SAFE_INTEGER;
+                        //     console.log(chalk.gray("Stop suck water pulse"));
+                        //     await this.relays.setGpio(VALVE_SUCK_CLEAN, false);
+                        //     if (this.suckWaterPulseRemainingCount == 0) {
+                        //         console.log(chalk.gray("All pulses done, stop sucking"));
+                        //         this.startSuckWaterAt = Number.MAX_SAFE_INTEGER;
+                        //         await this.relays.setGpio(MOTOR_SUCK, false);
+                        //         break;
+                        //     }
+                        // }
+
+                        // this.startSuckPulseAt = now + 500;
+                        // this.stopSuckPulseAt = this.startSuckPulseAt + 100;
+                        // this.stopMotorAt = this.stopSuckPulseAt + 4000;
+                        // this.stopFlushingAt = this.stopMotorAt + 4000;
+
+                        if (now >= this.startSuckPulseAt) {
+                            this.startSuckPulseAt = Number.MAX_SAFE_INTEGER;
+                            console.log(chalk.gray("Start suck pulse"));
                             await this.relays.setGpio(VALVE_SUCK_CLEAN, true);
                         }
-                        if (now >= this.stopSuckWaterAt) {
-                            this.stopSuckWaterAt = Number.MAX_SAFE_INTEGER;
-                            console.log(chalk.gray("Stop suck water pulse"));
+                        if (now >= this.stopSuckPulseAt) {
+                            this.stopSuckPulseAt = Number.MAX_SAFE_INTEGER;
+                            console.log(chalk.gray("Stop suck pulse"));
+                            // Water will take this route instead because path of least resistance
                             await this.relays.setGpio(VALVE_SUCK_CLEAN, false);
-                            if (this.suckWaterPulseRemainingCount == 0) {
-                                console.log(chalk.gray("All pulses done, stop sucking"));
-                                this.startSuckWaterAt = Number.MAX_SAFE_INTEGER;
-                                await this.relays.setGpio(MOTOR_SUCK, false);
-                                break;
-                            }
+                            await this.relays.setGpio(VALVE_WATER, true);
                         }
+                        if (now >= this.openSuckWaterAt) {
+                            this.openSuckWaterAt = Number.MAX_SAFE_INTEGER;
+                            console.log(chalk.gray("Allow to suck water"));
+                            await this.relays.setGpio(VALVE_SUCK_CLEAN, true);
+                        }
+                        if (now >= this.stopMotorAt) {
+                            this.stopMotorAt = Number.MAX_SAFE_INTEGER;
+                            console.log(chalk.gray("Stop motor"));
+                            await this.relays.setGpio(MOTOR_SUCK, false);
+                            await this.relays.setGpio(VALVE_SUCK_CLEAN, false);
+                        }
+
                         if (now >= this.stopFlushingAt) {
                             this.stopFlushingAt = Number.MAX_SAFE_INTEGER;
                             console.log(chalk.gray("Stopping flushing, transition to idle"));

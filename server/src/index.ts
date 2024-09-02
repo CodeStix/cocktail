@@ -9,7 +9,10 @@ import { CounterDriver } from "./counter";
 const BUTTON_PINS = [15, 16, 1, 6, 10, 31];
 
 const VALVE_WATER_MAIN = 8;
-const VALVE_WATER_WASTE = 1;
+// const VALVE_WATER_WASTE = 1;
+const VALVE_ROOM_TEMP_WATER = 1;
+const VALVE_COLD_WATER = 10;
+const VALVE_SPARKLING_WATER = 11;
 
 async function main() {
     console.time(chalk.green("Setup done"));
@@ -25,7 +28,9 @@ const FRAMES_PER_SECOND = 120;
 
 enum State {
     IDLE = 0,
-    WATER = 1,
+    COLD_WATER = 1,
+    SPARKLING_WATER = 2,
+    ROOM_TEMP_WATER = 3,
     // SODA_WATER,
     // CLEAN,
     // DRINKING_MODE = 1,
@@ -34,7 +39,10 @@ enum State {
 
 let state = State.IDLE;
 
-const BUTTON_WATER = 4;
+const BUTTON_DISPENSE = 2;
+const BUTTON_SPARKLING_WATER = 3;
+const BUTTON_COLD_WATER = 4;
+const BUTTON_ROOM_TEMP_WATER = 1;
 
 class CocktailMachine {
     private relay!: PCF8575Driver;
@@ -94,10 +102,44 @@ class CocktailMachine {
                         break;
                     }
 
-                    case State.WATER: {
+                    case State.COLD_WATER: {
                         for (let i = 0; i < BUTTON_PINS.length; i++) {
                             let value = Math.sin(now / 100) / 2 + 0.5;
-                            await this.led.setDutyCycle(i, i === BUTTON_WATER ? value : 0);
+                            if (i == BUTTON_COLD_WATER) {
+                                await this.led.setDutyCycle(i, value);
+                            } else if (this.stopWaterWastingAt === Number.MAX_SAFE_INTEGER && i == BUTTON_DISPENSE) {
+                                await this.led.setDutyCycle(i, 1);
+                            } else {
+                                await this.led.setDutyCycle(i, 0);
+                            }
+                        }
+                        break;
+                    }
+
+                    case State.SPARKLING_WATER: {
+                        for (let i = 0; i < BUTTON_PINS.length; i++) {
+                            let value = Math.sin(now / 100) / 2 + 0.5;
+                            if (i == BUTTON_SPARKLING_WATER) {
+                                await this.led.setDutyCycle(i, value);
+                            } else if (this.stopWaterWastingAt === Number.MAX_SAFE_INTEGER && i == BUTTON_DISPENSE) {
+                                await this.led.setDutyCycle(i, 1);
+                            } else {
+                                await this.led.setDutyCycle(i, 0);
+                            }
+                        }
+                        break;
+                    }
+
+                    case State.ROOM_TEMP_WATER: {
+                        for (let i = 0; i < BUTTON_PINS.length; i++) {
+                            let value = Math.sin(now / 100) / 2 + 0.5;
+                            if (i == BUTTON_ROOM_TEMP_WATER) {
+                                await this.led.setDutyCycle(i, value);
+                            } else if (this.stopWaterWastingAt === Number.MAX_SAFE_INTEGER && i == BUTTON_DISPENSE) {
+                                await this.led.setDutyCycle(i, 1);
+                            } else {
+                                await this.led.setDutyCycle(i, 0);
+                            }
                         }
                         break;
                     }
@@ -140,25 +182,42 @@ class CocktailMachine {
         try {
             switch (newState) {
                 case State.IDLE: {
-                    await this.relay.setGpio(VALVE_WATER_MAIN, false);
+                    // await this.relay.setGpio(VALVE_WATER_MAIN, false);
+                    // await this.relay.setGpio(VALVE_WATER, false);
+                    // await this.relay.setGpio(VALVE_SPARKLING_WATER, false);
+                    await this.relay.setAllGpio(0);
 
-                    if (state === State.WATER) {
-                        await this.relay.setGpio(VALVE_WATER_WASTE, true);
-                        this.stopWaterWastingAt = now + 1000;
-                    } else {
-                        await this.relay.setGpio(VALVE_WATER_WASTE, false);
-                    }
+                    // if (state === State.WATER || state === State.SPARKLING_WATER) {
+                    //     await this.relay.setGpio(VALVE_ROOM_TEMP_WATER, true);
+                    //     this.stopWaterWastingAt = now + 1000;
+                    // } else {
+                    //     await this.relay.setGpio(VALVE_WATER_WASTE, false);
+                    // }
 
-                    // await this.relay.setAllGpio(0);
                     break;
                 }
 
-                case State.WATER: {
-                    await this.relay.setGpio(VALVE_WATER_WASTE, true);
+                case State.SPARKLING_WATER: {
+                    await this.relay.setGpio(VALVE_SPARKLING_WATER, true);
                     await this.relay.setGpio(VALVE_WATER_MAIN, true);
 
                     this.stopWaterWastingAt = now + 1000;
-                    console.log(chalk.gray("Starting water wasting"), now, this.stopWaterWastingAt);
+                    break;
+                }
+
+                case State.COLD_WATER: {
+                    await this.relay.setGpio(VALVE_COLD_WATER, true);
+                    await this.relay.setGpio(VALVE_WATER_MAIN, true);
+
+                    this.stopWaterWastingAt = now + 1000;
+                    break;
+                }
+
+                case State.ROOM_TEMP_WATER: {
+                    await this.relay.setGpio(VALVE_ROOM_TEMP_WATER, true);
+                    await this.relay.setGpio(VALVE_WATER_MAIN, true);
+
+                    this.stopWaterWastingAt = now + 1000;
                     break;
                 }
 
@@ -194,32 +253,88 @@ class CocktailMachine {
                             }
                         }
 
-                        if (changedButtons[BUTTON_WATER] && buttonStates[BUTTON_WATER]) {
+                        if (changedButtons[BUTTON_COLD_WATER] && buttonStates[BUTTON_COLD_WATER]) {
                             console.log(chalk.gray("Water button pressed, going to water state"));
-                            await this.transitionState(State.WATER);
+                            await this.transitionState(State.COLD_WATER);
                             break;
                         }
 
-                        if (now >= this.stopWaterWastingAt) {
-                            console.log(chalk.gray("Stopping water wasting"));
-                            this.stopWaterWastingAt = Number.MAX_SAFE_INTEGER;
-                            await this.relay.setGpio(VALVE_WATER_WASTE, false);
+                        if (changedButtons[BUTTON_SPARKLING_WATER] && buttonStates[BUTTON_SPARKLING_WATER]) {
+                            console.log(chalk.gray("Sparkling water button pressed, going to sparkling water state"));
+                            await this.transitionState(State.SPARKLING_WATER);
+                            break;
                         }
+
+                        if (changedButtons[BUTTON_ROOM_TEMP_WATER] && buttonStates[BUTTON_ROOM_TEMP_WATER]) {
+                            console.log(chalk.gray("Room temp water button pressed, going to room temp water state"));
+                            await this.transitionState(State.ROOM_TEMP_WATER);
+                            break;
+                        }
+
+                        // if (now >= this.stopWaterWastingAt) {
+                        //     console.log(chalk.gray("Stopping water wasting"));
+                        //     this.stopWaterWastingAt = Number.MAX_SAFE_INTEGER;
+                        //     await this.relay.setGpio(VALVE_WATER_WASTE, false);
+                        // }
 
                         break;
                     }
 
-                    case State.WATER: {
-                        if (changedButtons[BUTTON_WATER] && buttonStates[BUTTON_WATER]) {
-                            console.log(chalk.gray("Water button pressed, returning to idle"));
+                    case State.COLD_WATER: {
+                        if (changedButtons[BUTTON_COLD_WATER] && buttonStates[BUTTON_COLD_WATER]) {
+                            console.log(chalk.gray("Cold water button pressed, returning to idle"));
                             await this.transitionState(State.IDLE);
                             break;
                         }
 
                         if (now >= this.stopWaterWastingAt) {
-                            console.log(chalk.gray("Stopping water wasting"));
+                            console.log(chalk.gray("Stopping cold water wasting"));
                             this.stopWaterWastingAt = Number.MAX_SAFE_INTEGER;
-                            await this.relay.setGpio(VALVE_WATER_WASTE, false);
+                            await this.relay.setGpio(VALVE_COLD_WATER, false);
+                        }
+
+                        if (this.stopWaterWastingAt === Number.MAX_SAFE_INTEGER && changedButtons[BUTTON_DISPENSE]) {
+                            await this.relay.setGpio(VALVE_COLD_WATER, buttonStates[BUTTON_DISPENSE]);
+                        }
+
+                        break;
+                    }
+
+                    case State.SPARKLING_WATER: {
+                        if (changedButtons[BUTTON_SPARKLING_WATER] && buttonStates[BUTTON_SPARKLING_WATER]) {
+                            console.log(chalk.gray("Sparkling water button pressed, returning to idle"));
+                            await this.transitionState(State.IDLE);
+                            break;
+                        }
+
+                        if (now >= this.stopWaterWastingAt) {
+                            console.log(chalk.gray("Stopping sparkling water wasting"));
+                            this.stopWaterWastingAt = Number.MAX_SAFE_INTEGER;
+                            await this.relay.setGpio(VALVE_SPARKLING_WATER, false);
+                        }
+
+                        if (this.stopWaterWastingAt === Number.MAX_SAFE_INTEGER && changedButtons[BUTTON_DISPENSE]) {
+                            await this.relay.setGpio(VALVE_SPARKLING_WATER, buttonStates[BUTTON_DISPENSE]);
+                        }
+
+                        break;
+                    }
+
+                    case State.ROOM_TEMP_WATER: {
+                        if (changedButtons[BUTTON_ROOM_TEMP_WATER] && buttonStates[BUTTON_ROOM_TEMP_WATER]) {
+                            console.log(chalk.gray("Sparkling water button pressed, returning to idle"));
+                            await this.transitionState(State.IDLE);
+                            break;
+                        }
+
+                        if (now >= this.stopWaterWastingAt) {
+                            console.log(chalk.gray("Stopping room temp water wasting"));
+                            this.stopWaterWastingAt = Number.MAX_SAFE_INTEGER;
+                            await this.relay.setGpio(VALVE_ROOM_TEMP_WATER, false);
+                        }
+
+                        if (this.stopWaterWastingAt === Number.MAX_SAFE_INTEGER && changedButtons[BUTTON_DISPENSE]) {
+                            await this.relay.setGpio(VALVE_ROOM_TEMP_WATER, buttonStates[BUTTON_DISPENSE]);
                         }
 
                         break;

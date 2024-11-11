@@ -15,16 +15,6 @@ const VALVE_COLD_WATER = 11;
 const VALVE_SPARKLING_WATER = 10;
 const WASTE_PUMP = 14;
 
-async function main() {
-    console.time(chalk.green("Setup done"));
-
-    let bus = await i2c.openPromisified(6);
-    let machine = new CocktailMachine(bus);
-    await machine.initialize();
-
-    console.timeEnd(chalk.green("Setup done"));
-}
-
 const FRAMES_PER_SECOND = 120;
 
 const FLOW_SENSOR_ROTATIONS_PER_LITER = 346;
@@ -49,12 +39,12 @@ const BUTTON_COLD_WATER = 4;
 const BUTTON_ROOM_TEMP_WATER = 1;
 const BUTTON_SODA = 0;
 
-class CocktailMachine {
-    private relay!: PCF8575Driver;
-    private relay24v!: PCF8575Driver;
+export class CocktailMachine {
+    relay!: PCF8575Driver;
+    relay24v!: PCF8575Driver;
     // private ads!: ADS1115;
-    private led!: PCA9685Driver;
-    private flowCounter!: CounterDriver;
+    led!: PCA9685Driver;
+    flowCounter!: CounterDriver;
 
     private stopWaterWastingAt: number = Number.MAX_SAFE_INTEGER;
 
@@ -378,5 +368,3 @@ class CocktailMachine {
         }
     }
 }
-
-main();

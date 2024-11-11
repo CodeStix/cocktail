@@ -13,8 +13,8 @@ export type ClientMessage =
       }
     | {
           type: "all-gpio";
-          relay: number;
-          relay24v: number;
+          relay?: number;
+          relay24v?: number;
       };
 
 export type ServerMessage =
@@ -22,4 +22,4 @@ export type ServerMessage =
           type: "get-drinks";
       }
     | { type: "get-all-gpio" }
-    | { type: "set-all-gpio"; relay: number; relay24v: number };
+    | { type: "set-all-gpio"; relay?: number; relay24v?: number };

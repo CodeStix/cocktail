@@ -28,7 +28,7 @@ export class PCF8575Driver extends EventEmitter {
             this._cachedGpioBits = bits;
         }
 
-        super.emit("get", this._cachedGpioBits);
+        // super.emit("get", this._cachedGpioBits);
 
         return this._cachedGpioBits;
     }
@@ -44,7 +44,7 @@ export class PCF8575Driver extends EventEmitter {
         buffer[1] = (bits >> 8) & 0xff;
         await this.bus.i2cWrite(this.address, buffer.length, buffer);
 
-        super.emit("set", bits);
+        super.emit("set", this.inverted ? ~bits : bits);
     }
 
     public async getGpio(pos: number): Promise<boolean> {
@@ -61,8 +61,16 @@ export class PCF8575Driver extends EventEmitter {
     }
 }
 
-export class RelayDriver {
-    constructor(private drivers: PCF8575Driver[]) {}
+export class RelayDriver extends EventEmitter {
+    constructor(private drivers: PCF8575Driver[]) {
+        super();
+
+        for (let driver of this.drivers) {
+            driver.on("set", async () => {
+                this.emit("set", await this.getAllGpio());
+            });
+        }
+    }
 
     async clearAll() {
         for (let d of this.drivers) {
@@ -80,5 +88,41 @@ export class RelayDriver {
             num -= dc;
         }
         throw new Error("setGpio out of range");
+    }
+
+    async getGpio(num: number): Promise<boolean> {
+        for (let d of this.drivers) {
+            let dc = d.getGpioCount();
+            if (num < dc) {
+                return await d.getGpio(num);
+            }
+            num -= dc;
+        }
+        throw new Error("getGpio out of range");
+    }
+
+    async getAllGpio(): Promise<boolean[]> {
+        let values = [] as boolean[];
+        for (let driver of this.drivers) {
+            let dc = driver.getGpioCount();
+            let num = await driver.getAllGpio();
+            for (let di = 0; di < dc; di++) {
+                values.push(((num >>> di) & 0x1) === 0x1);
+            }
+        }
+        return values;
+    }
+
+    async setAllGpio(values: boolean[]): Promise<void> {
+        let i = 0;
+        for (let driver of this.drivers) {
+            let dc = driver.getGpioCount();
+            let num = 0;
+            for (let di = 0; di < dc; di++) {
+                if (values[i++]) num |= 1 << di;
+            }
+
+            await driver.setAllGpio(num);
+        }
     }
 }

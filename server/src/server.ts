@@ -7,6 +7,7 @@ import chalk from "chalk";
 import { PinMode, PullUpDownMode, pinMode, pullUpDnControl } from "tinker-gpio";
 import { CocktailMachine } from ".";
 import i2c from "i2c-bus";
+import fs from "fs";
 
 const DRINKS: Drink[] = [
     {
@@ -52,6 +53,7 @@ function sendMessage(to: WebSocket, message: ClientMessage) {
 }
 
 async function handleSocketMessage(sender: WebSocket, message: ServerMessage) {
+    console.log("Received", message);
     switch (message.type) {
         case "get-drinks": {
             sendMessage(sender, {
@@ -63,18 +65,20 @@ async function handleSocketMessage(sender: WebSocket, message: ServerMessage) {
         case "get-all-gpio": {
             sendMessage(sender, {
                 type: "all-gpio",
-                relay: await machine.relay.getAllGpio(),
-                relay24v: await machine.relay24v.getAllGpio(),
+                values: await machine.relays.getAllGpio(),
+                // relay: await machine.relay12v.getAllGpio(),
+                // relay24v: await machine.relay24v.getAllGpio(),
             });
             break;
         }
-        case "set-all-gpio": {
-            if (message.relay !== undefined) {
-                await machine.relay.setAllGpio(message.relay);
-            }
-            if (message.relay24v !== undefined) {
-                await machine.relay24v.setAllGpio(message.relay24v);
-            }
+        case "set-gpio": {
+            await machine.relays.setGpio(message.index, message.value);
+            // if (message.relay !== undefined) {
+            //     await machine.relay12v.setAllGpio(message.relay);
+            // }
+            // if (message.relay24v !== undefined) {
+            //     await machine.relay24v.setAllGpio(message.relay24v);
+            // }
             break;
         }
     }
@@ -123,15 +127,9 @@ async function main() {
         });
     });
 
-    machine.relay.on("set", (gpio: number) => {
+    machine.relays.on("set", (values: boolean[]) => {
         socketServer.clients.forEach((c) => {
-            sendMessage(c, { type: "all-gpio", relay: gpio });
-        });
-    });
-
-    machine.relay24v.on("set", (gpio: number) => {
-        socketServer.clients.forEach((c) => {
-            sendMessage(c, { type: "all-gpio", relay24v: gpio });
+            sendMessage(c, { type: "all-gpio", values: values });
         });
     });
 

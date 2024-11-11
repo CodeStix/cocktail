@@ -3,10 +3,10 @@ import { Layout } from "./components/Layout";
 import { ClientMessage, Output, ServerMessage } from "cocktail-shared";
 import { useEffect, useState } from "react";
 import useWebSocket, { ReadyState } from "react-use-websocket";
-import { SERVER_WS_URL } from "./util";
+import { SERVER_WS_URL, fetchJson } from "./util";
 
 export function DebugPage() {
-    const { lastJsonMessage, sendJsonMessage, readyState } = useWebSocket<ClientMessage>(SERVER_WS_URL);
+    const { lastJsonMessage } = useWebSocket<ClientMessage>(SERVER_WS_URL);
     const [outputs, setOutputs] = useState<Output[] | null>(null);
 
     useEffect(() => {
@@ -19,20 +19,12 @@ export function DebugPage() {
         }
     }, [lastJsonMessage]);
 
-    useEffect(() => {
-        if (readyState === ReadyState.OPEN) {
-            sendJsonMessage({ type: "get-all-outputs" } as ServerMessage);
-        }
-    }, [readyState]);
-
-    function setOutputEnabled(id: number, enabled: boolean) {
-        let message: ServerMessage = { type: "set-output-enabled", id: id, enabled: enabled };
-        sendJsonMessage(message);
+    async function setOutputEnabled(id: number, enabled: boolean) {
+        await fetchJson("/api/outputs/" + id + "/enable", "POST", { enabled });
     }
 
-    function updateOutput(id: number, values: { name?: string; index?: number }) {
-        let message: ServerMessage = { type: "update-output", id: id, name: values.name, index: values.index };
-        sendJsonMessage(message);
+    async function updateOutput(id: number, values: { name?: string; index?: number }) {
+        await fetchJson("/api/outputs/" + id, "PATCH", { name: values.name, index: values.index });
     }
 
     return (

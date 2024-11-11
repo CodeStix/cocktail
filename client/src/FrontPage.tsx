@@ -1,8 +1,5 @@
 import { Flex, Text, Button, Box, Card } from "@radix-ui/themes";
-import { Link } from "react-router-dom";
-import { Layout } from "./components/Layout";
 import { ClientMessage, Drink, ServerMessage } from "cocktail-shared";
-import useSWR from "swr";
 import { SERVER_URL, SERVER_WS_URL, fetcher } from "./util";
 import useWebSocket, { ReadyState } from "react-use-websocket";
 import { useEffect, useState } from "react";

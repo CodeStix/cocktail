@@ -18,6 +18,7 @@ import {
     updateIngredient,
     updateOutput,
 } from "./db";
+import { json } from "body-parser";
 
 const DRINKS: Drink[] = [
     {
@@ -52,25 +53,55 @@ const port = 8000;
 //     res.json({});
 // });
 
+app.use(cors());
+
+app.use((req, res, next) => {
+    console.log(req.method, req.url);
+    next();
+});
+
 app.get("/api/drinks", cors(), (req, res) => {
     res.json({
         drinks: DRINKS,
     });
 });
 
-app.get("/api/ingredients", cors(), async (req, res) => {
+async function getOutputsWithState() {
+    const outputs = await getAllOutputs();
+    for (const output of outputs) {
+        output.enabled = await machine.relays.getGpio(output.index);
+    }
+    return outputs;
+}
+
+app.get("/api/outputs", json(), async (req, res) => {
+    res.json(await getOutputsWithState());
+});
+
+app.post("/api/outputs/:id/enabled", json(), async (req, res) => {
+    const id = parseInt(req.params.id);
+    const enabled = req.body.enabled;
+    await machine.relays.setGpio((await getOutputById(id)).index, enabled);
+    res.json({});
+});
+
+app.patch("/api/outputs/:id", json(), async (req, res) => {
+    res.json(await updateOutput(parseInt(req.params.id), req.body));
+});
+
+app.get("/api/ingredients", json(), async (req, res) => {
     res.json(await getIngredients());
 });
 
-app.post("/api/ingredients", cors(), async (req, res) => {
+app.post("/api/ingredients", json(), async (req, res) => {
     res.json(await createIngredient());
 });
 
-app.patch("/api/ingredients/:id", cors(), async (req, res) => {
+app.patch("/api/ingredients/:id", json(), async (req, res) => {
     res.json(await updateIngredient(parseInt(req.params.id), req.body));
 });
 
-app.delete("/api/ingredients/:id", cors(), async (req, res) => {
+app.delete("/api/ingredients/:id", json(), async (req, res) => {
     await deleteIngredient(parseInt(req.params.id));
     res.json({});
 });
@@ -89,16 +120,16 @@ function sendMessage(to: WebSocket, message: ClientMessage) {
 //     });
 // }
 
-async function sendAllOutputsMessage(sender: WebSocket) {
-    const outputs = await getAllOutputs();
-    for (const output of outputs) {
-        output.enabled = await machine.relays.getGpio(output.index);
-    }
-    sendMessage(sender, {
-        type: "all-outputs",
-        outputs,
-    });
-}
+// async function sendAllOutputsMessage(sender: WebSocket) {
+//     const outputs = await getAllOutputs();
+//     for (const output of outputs) {
+//         output.enabled = await machine.relays.getGpio(output.index);
+//     }
+//     sendMessage(sender, {
+//         type: "all-outputs",
+//         outputs,
+//     });
+// }
 
 async function handleSocketMessage(sender: WebSocket, message: ServerMessage) {
     console.log("Received", message);
@@ -110,19 +141,19 @@ async function handleSocketMessage(sender: WebSocket, message: ServerMessage) {
             });
             break;
         }
-        case "get-all-outputs": {
-            await sendAllOutputsMessage(sender);
-            break;
-        }
-        case "set-output-enabled": {
-            await machine.relays.setGpio((await getOutputById(message.id)).index, message.enabled);
-            break;
-        }
-        case "update-output": {
-            await updateOutput(message.id, { index: message.index, name: message.name });
-            await sendAllOutputsMessage(sender);
-            break;
-        }
+        // case "get-all-outputs": {
+        //     await sendAllOutputsMessage(sender);
+        //     break;
+        // }
+        // case "set-output-enabled": {
+        //     await machine.relays.setGpio((await getOutputById(message.id)).index, message.enabled);
+        //     break;
+        // }
+        // case "update-output": {
+        //     await updateOutput(message.id, { index: message.index, name: message.name });
+        //     await sendAllOutputsMessage(sender);
+        //     break;
+        // }
         default: {
             console.warn(chalk.yellow("Unhandled message"), message);
             break;
@@ -174,8 +205,11 @@ async function main() {
     });
 
     machine.relays.on("set", (values: boolean[]) => {
-        socketServer.clients.forEach((c) => {
-            void sendAllOutputsMessage(c);
+        socketServer.clients.forEach(async (c) => {
+            sendMessage(c, {
+                type: "all-outputs",
+                outputs: await getOutputsWithState(),
+            });
         });
     });
 

@@ -38,14 +38,15 @@ export async function insertDefaultOutputs() {
     cachedOutputs = null;
 }
 
-export async function updateOutput(id: number, values: { name?: string; index?: number }) {
-    await database.output.update({
+export async function updateOutput(id: number, values: { name?: string; index?: number }): Promise<Output> {
+    const newOutput = await database.output.update({
         where: {
             id: id,
         },
         data: values,
     });
     cachedOutputs = null;
+    return newOutput;
 }
 
 export async function getIngredients(): Promise<Ingredient[]> {

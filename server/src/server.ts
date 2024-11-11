@@ -52,6 +52,7 @@ function sendMessage(to: WebSocket, message: ClientMessage) {
 }
 
 async function handleSocketMessage(sender: WebSocket, message: ServerMessage) {
+    console.log("Received", message);
     switch (message.type) {
         case "get-drinks": {
             sendMessage(sender, {

@@ -44,7 +44,7 @@ export class PCF8575Driver extends EventEmitter {
         buffer[1] = (bits >> 8) & 0xff;
         await this.bus.i2cWrite(this.address, buffer.length, buffer);
 
-        super.emit("set", bits);
+        super.emit("set", this.inverted ? ~bits : bits);
     }
 
     public async getGpio(pos: number): Promise<boolean> {

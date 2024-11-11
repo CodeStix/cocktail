@@ -58,22 +58,25 @@ export class CocktailMachine {
         });
         console.timeEnd(chalk.green("Setup GPIO driver"));
 
-        console.time(chalk.green("Setup GPIO expander driver"));
+        console.time(chalk.green("Setup PWM driver"));
+        this.led = new PCA9685Driver(this.bus, 0x40);
+        await this.led.initialize();
+        console.timeEnd(chalk.green("Setup PWM driver"));
+
+        console.time(chalk.green("Setup GPIO expander driver 24v"));
         this.relay24v = new PCF8575Driver(this.bus, 32);
+        console.timeEnd(chalk.green("Setup GPIO expander driver 24v"));
+
+        console.time(chalk.green("Setup GPIO expander driver 12v"));
         this.relay = new PCF8575Driver(this.bus, 33);
+        console.timeEnd(chalk.green("Setup GPIO expander driver 12v"));
         // this.relays = new MultiPCF8575Driver([relay, relay2]);
         // await this.relays.clearAll();
-        console.timeEnd(chalk.green("Setup GPIO expander driver"));
 
         // console.time(chalk.green("Setup ADS driver"));
         // this.ads = new ADS1115(this.bus, 0x48);
         // await this.ads.initialize();
         // console.timeEnd(chalk.green("Setup ADS driver"));
-
-        console.time(chalk.green("Setup PWM driver"));
-        this.led = new PCA9685Driver(this.bus, 0x40);
-        await this.led.initialize();
-        console.timeEnd(chalk.green("Setup PWM driver"));
 
         console.time(chalk.green("Setup flow driver"));
         this.flowCounter = new CounterDriver(this.bus, 0x33);

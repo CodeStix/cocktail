@@ -51,13 +51,26 @@ function sendMessage(to: WebSocket, message: ClientMessage) {
     to.send(JSON.stringify(message));
 }
 
-function handleSocketMessage(sender: WebSocket, message: ServerMessage) {
+async function handleSocketMessage(sender: WebSocket, message: ServerMessage) {
     switch (message.type) {
         case "get-drinks": {
             sendMessage(sender, {
                 type: "drinks",
                 drinks: DRINKS,
             });
+            break;
+        }
+        case "get-all-gpio": {
+            sendMessage(sender, {
+                type: "all-gpio",
+                relay: await machine.relay.getAllGpio(),
+                relay24v: await machine.relay24v.getAllGpio(),
+            });
+            break;
+        }
+        case "set-all-gpio": {
+            await machine.relay.setAllGpio(message.relay);
+            await machine.relay24v.setAllGpio(message.relay24v);
             break;
         }
     }
@@ -88,10 +101,10 @@ async function main() {
     socketServer.on("connection", (ws, req) => {
         console.log("New connection", req.socket.remoteAddress);
 
-        ws.on("message", (data, _) => {
+        ws.on("message", async (data, _) => {
             try {
                 const message = JSON.parse(data.toString()) as ServerMessage;
-                handleSocketMessage(ws, message);
+                await handleSocketMessage(ws, message);
             } catch (ex) {
                 console.error("Could not handle message from " + req.socket.remoteAddress, ex);
             }

@@ -40,11 +40,11 @@ const BUTTON_ROOM_TEMP_WATER = 1;
 const BUTTON_SODA = 0;
 
 export class CocktailMachine {
-    private relay!: PCF8575Driver;
-    private relay24v!: PCF8575Driver;
+    relay!: PCF8575Driver;
+    relay24v!: PCF8575Driver;
     // private ads!: ADS1115;
-    private led!: PCA9685Driver;
-    private flowCounter!: CounterDriver;
+    led!: PCA9685Driver;
+    flowCounter!: CounterDriver;
 
     private stopWaterWastingAt: number = Number.MAX_SAFE_INTEGER;
 

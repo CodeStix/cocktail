@@ -8,6 +8,7 @@ import { PinMode, PullUpDownMode, pinMode, pullUpDnControl } from "tinker-gpio";
 import { CocktailMachine } from ".";
 import i2c from "i2c-bus";
 import fs from "fs";
+import { OutputFunction, getFunctionForRelayIdx, getRelayIdxForFunction, setRelayFunction } from "./output";
 
 const DRINKS: Drink[] = [
     {
@@ -52,6 +53,16 @@ function sendMessage(to: WebSocket, message: ClientMessage) {
     to.send(JSON.stringify(message));
 }
 
+async function sendAllGpioMessage(sender: WebSocket) {
+    sendMessage(sender, {
+        type: "all-gpio",
+        values: (await machine.relays.getAllGpio()).map((value, idx) => ({
+            value: value,
+            function: OutputFunction[getFunctionForRelayIdx(idx)],
+        })),
+    });
+}
+
 async function handleSocketMessage(sender: WebSocket, message: ServerMessage) {
     console.log("Received", message);
     switch (message.type) {
@@ -63,22 +74,23 @@ async function handleSocketMessage(sender: WebSocket, message: ServerMessage) {
             break;
         }
         case "get-all-gpio": {
-            sendMessage(sender, {
-                type: "all-gpio",
-                values: await machine.relays.getAllGpio(),
-                // relay: await machine.relay12v.getAllGpio(),
-                // relay24v: await machine.relay24v.getAllGpio(),
-            });
+            sendAllGpioMessage(sender);
             break;
         }
         case "set-gpio": {
             await machine.relays.setGpio(message.index, message.value);
-            // if (message.relay !== undefined) {
-            //     await machine.relay12v.setAllGpio(message.relay);
-            // }
-            // if (message.relay24v !== undefined) {
-            //     await machine.relay24v.setAllGpio(message.relay24v);
-            // }
+            break;
+        }
+        case "get-all-gpio-functions": {
+            sendMessage(sender, {
+                type: "all-gpio-functions",
+                values: Object.keys(OutputFunction).filter((e) => isNaN(Number(e))),
+            });
+            break;
+        }
+        case "set-gpio-function": {
+            setRelayFunction(OutputFunction[message.function as keyof typeof OutputFunction], message.index);
+            sendAllGpioMessage(sender);
             break;
         }
     }

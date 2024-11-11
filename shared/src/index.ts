@@ -13,12 +13,19 @@ export type ClientMessage =
       }
     | {
           type: "all-gpio";
-          values: boolean[];
+          values: {
+              value: boolean;
+              function: string | null;
+          }[];
+      }
+    | {
+          type: "all-gpio-functions";
+          values: string[];
       };
 
 export type ServerMessage =
-    | {
-          type: "get-drinks";
-      }
+    | { type: "get-drinks" }
     | { type: "get-all-gpio" }
-    | { type: "set-gpio"; index: number; value: boolean };
+    | { type: "set-gpio"; index: number; value: boolean }
+    | { type: "get-all-gpio-functions" }
+    | { type: "set-gpio-function"; index: number; function: string };

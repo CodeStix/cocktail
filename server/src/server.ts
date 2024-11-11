@@ -51,7 +51,10 @@ let machine: CocktailMachine;
 const app = express();
 const port = 8000;
 
-const UPLOADS_FOLDER_PATH = path.join(__dirname, "..", "upload");
+const PUBLIC_FOLDER_PATH = path.join(__dirname, "..", "public");
+const UPLOADS_FOLDER_PATH = path.join(PUBLIC_FOLDER_PATH, "upload");
+
+// chromium --kiosk --force-device-scale-factor=1.5 http://192.168.0.55:8000/
 
 const upload = multer({
     dest: UPLOADS_FOLDER_PATH,
@@ -118,7 +121,7 @@ app.post("/api/upload", upload.single("file"), (req, res) => {
     res.json({ url: "/uploads/" + req.file!.filename + ext });
 });
 
-app.use("/uploads", express.static(UPLOADS_FOLDER_PATH));
+app.use(express.static(PUBLIC_FOLDER_PATH));
 
 function sendMessage(to: WebSocket, message: ClientMessage) {
     to.send(JSON.stringify(message));

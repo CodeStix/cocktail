@@ -14,11 +14,14 @@
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
     "@types/i2c-bus": "^5.1.2",
+    "@types/node": "^22.9.0",
     "@types/ws": "^8.5.13",
+    "prisma": "^5.22.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.3.3"
+    "typescript": "^5.6.3"
   },
   "dependencies": {
+    "@prisma/client": "^5.22.0",
     "chalk": "^4.1.2",
     "cocktail-shared": "file:../shared",
     "cors": "^2.8.5",

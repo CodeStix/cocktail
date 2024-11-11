@@ -1,0 +1,49 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./database.sqlite3"
+}
+
+model Recipe {
+  id          Int                @id @default(autoincrement())
+  name        String
+  description String
+  imageUrl    String
+  themeColor  String
+  totalAmount Float
+  ingredients RecipeIngredient[]
+}
+
+model RecipeIngredient {
+  recipe       Recipe     @relation(fields: [recipeId], references: [id])
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+  recipeId     Int
+  ingredientId Int
+
+  order  Int
+  amount Float
+
+  @@id([recipeId, ingredientId])
+}
+
+model Ingredient {
+  id           Int                @id @default(autoincrement())
+  output       Output?            @relation(fields: [outputIndex], references: [index])
+  outputIndex  Int?               @unique
+  usedInRecipe RecipeIngredient[]
+}
+
+model Output {
+  index      Int         @id
+  name       String
+  ingredient Ingredient?
+}

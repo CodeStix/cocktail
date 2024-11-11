@@ -4,21 +4,27 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "ts-node src/index.ts",
+    "dev": "ts-node src/server.ts",
     "build": "tsc"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
     "@types/i2c-bus": "^5.1.2",
+    "@types/ws": "^8.5.13",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3"
   },
   "dependencies": {
     "chalk": "^4.1.2",
+    "cocktail-shared": "file:../shared",
+    "cors": "^2.8.5",
+    "express": "^4.21.1",
     "i2c-bus": "^5.2.3",
     "tinker-gpio": "file:../tinker-gpio",
-    "cocktail-shared": "file:../shared"
+    "ws": "^8.18.0"
   }
 }

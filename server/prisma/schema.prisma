@@ -17,7 +17,7 @@ model Recipe {
   id          Int                @id @default(autoincrement())
   name        String
   description String
-  imageUrl    String
+  imageUrl    String?
   themeColor  String
   totalAmount Float
   ingredients RecipeIngredient[]
@@ -36,15 +36,19 @@ model RecipeIngredient {
 }
 
 model Ingredient {
-  id           Int                @id @default(autoincrement())
-  output       Output?            @relation(fields: [outputId], references: [id])
-  outputId     Int?               @unique
-  usedInRecipe RecipeIngredient[]
+  id              Int                @id @default(autoincrement())
+  name            String
+  imageUrl        String?
+  output          Output?            @relation(fields: [outputId], references: [id])
+  outputId        Int?
+  usedInRecipe    RecipeIngredient[]
+  remainingAmount Float
+  inFridge        Boolean
 }
 
 model Output {
-  id              Int         @id @default(autoincrement())
-  index           Int
-  name            String
-  boundIngredient Ingredient?
+  id                Int          @id @default(autoincrement())
+  index             Int
+  name              String
+  usedInIngredients Ingredient[]
 }

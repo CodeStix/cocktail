@@ -4,7 +4,7 @@ import { Layout } from "./components/Layout";
 import { ClientMessage, Drink, ServerMessage } from "cocktail-shared";
 import useSWR from "swr";
 import { SERVER_URL, SERVER_WS_URL, fetcher } from "./util";
-import useWebSocket from "react-use-websocket";
+import useWebSocket, { ReadyState } from "react-use-websocket";
 import { useEffect, useState } from "react";
 
 function DrinkCard(props: { drink: Drink }) {
@@ -46,7 +46,7 @@ function DrinkCard(props: { drink: Drink }) {
 
 export function FrontPage() {
     // const { data } = useSWR<{ drinks: Drink[] }>(SERVER_URL + "/drinks", fetcher);
-    const { lastJsonMessage } = useWebSocket<ClientMessage>(SERVER_WS_URL);
+    const { lastJsonMessage, sendJsonMessage, readyState } = useWebSocket<ClientMessage>(SERVER_WS_URL);
     const [drinks, setDrinks] = useState<Drink[] | null>(null);
 
     useEffect(() => {
@@ -58,6 +58,12 @@ export function FrontPage() {
             setDrinks(lastJsonMessage.drinks);
         }
     }, [lastJsonMessage]);
+
+    useEffect(() => {
+        if (readyState === ReadyState.OPEN) {
+            sendJsonMessage({ type: "get-drinks" } as ServerMessage);
+        }
+    }, [readyState]);
 
     return (
         <Flex style={{ alignContent: "start" }} display="flex" flexGrow="1" p="4" wrap="wrap" gap="3">

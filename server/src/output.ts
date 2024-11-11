@@ -1,13 +1,8 @@
 import chalk from "chalk";
 import fs from "fs";
 
-type OutputFunctionPerRelay = {
-    [T in OutputFunction]?: {
-        index: number;
-    };
-};
-
-let relayConfig: OutputFunctionPerRelay = {};
+let functionToRelayIndex: Record<OutputFunction, number>;
+let relayIndexToFunction: Record<number, OutputFunction>;
 
 export enum OutputFunction {
     None = 0,
@@ -36,37 +31,54 @@ export enum OutputFunction {
 const RELAY_FUNC_FILE = "outputs.json";
 
 export function getRelayIdxForFunction(fn: OutputFunction) {
-    return relayConfig[fn];
+    if (!(fn in functionToRelayIndex)) {
+        throw new Error("No relay available for" + fn);
+    }
+    return functionToRelayIndex[fn];
 }
 
 export function getFunctionForRelayIdx(idx: number): OutputFunction {
-    let res = Object.entries(relayConfig).find(([, { index }]) => index === idx);
-    if (!res) {
+    if (!(idx in relayIndexToFunction)) {
         return OutputFunction.None;
     }
-    return OutputFunction[res[0] as keyof typeof OutputFunction];
+    return relayIndexToFunction[idx];
+    // let res = Object.entries(functionToRelayIndex).find(([, { index }]) => index === idx);
+    // if (!res) {
+    //     return OutputFunction.None;
+    // }
+    // return OutputFunction[res[0] as keyof typeof OutputFunction];
 }
 
 export function setRelayFunction(fn: OutputFunction, relayIdx: number, save = true) {
-    relayConfig[fn] = {
-        index: relayIdx,
-    };
+    functionToRelayIndex[fn] = relayIdx;
+    relayIndexToFunction[relayIdx] = fn;
     if (save) saveRelayFunctions();
 }
 
 export function loadRelayFunctions() {
+    functionToRelayIndex = {} as any;
+    relayIndexToFunction = {} as any;
+
     if (fs.existsSync(RELAY_FUNC_FILE)) {
         const str = fs.readFileSync(RELAY_FUNC_FILE, "utf-8");
-        relayConfig = JSON.parse(str);
+        let rec: Record<string, number> = JSON.parse(str);
+
+        for (const [k, v] of Object.entries(rec)) {
+            functionToRelayIndex[OutputFunction[k as keyof typeof OutputFunction]] = v;
+            relayIndexToFunction[v] = OutputFunction[k as keyof typeof OutputFunction];
+        }
     } else {
         console.warn(chalk.yellow("No relay function mapping file exists, creating..."));
-        relayConfig = {};
         saveRelayFunctions();
     }
 }
 
 export function saveRelayFunctions() {
-    fs.writeFileSync(RELAY_FUNC_FILE, JSON.stringify(relayConfig, null, 2));
+    let rec: Record<string, number> = {};
+    for (const [k, v] of Object.entries(functionToRelayIndex)) {
+        rec[OutputFunction[k as keyof typeof OutputFunction]] = v;
+    }
+    fs.writeFileSync(RELAY_FUNC_FILE, JSON.stringify(rec, null, 2));
 }
 
 loadRelayFunctions();

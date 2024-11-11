@@ -53,10 +53,10 @@ function sendMessage(to: WebSocket, message: ClientMessage) {
     to.send(JSON.stringify(message));
 }
 
-async function sendAllGpioMessage(sender: WebSocket) {
+async function sendAllGpioMessage(sender: WebSocket, values: boolean[]) {
     sendMessage(sender, {
         type: "all-gpio",
-        values: (await machine.relays.getAllGpio()).map((value, idx) => ({
+        values: values.map((value, idx) => ({
             value: value,
             function: OutputFunction[getFunctionForRelayIdx(idx)],
         })),
@@ -74,7 +74,7 @@ async function handleSocketMessage(sender: WebSocket, message: ServerMessage) {
             break;
         }
         case "get-all-gpio": {
-            sendAllGpioMessage(sender);
+            sendAllGpioMessage(sender, await machine.relays.getAllGpio());
             break;
         }
         case "set-gpio": {
@@ -90,7 +90,11 @@ async function handleSocketMessage(sender: WebSocket, message: ServerMessage) {
         }
         case "set-gpio-function": {
             setRelayFunction(OutputFunction[message.function as keyof typeof OutputFunction], message.index);
-            sendAllGpioMessage(sender);
+            sendAllGpioMessage(sender, await machine.relays.getAllGpio());
+            break;
+        }
+        default: {
+            console.warn(chalk.yellow("Unhandled message"), message);
             break;
         }
     }
@@ -141,7 +145,7 @@ async function main() {
 
     machine.relays.on("set", (values: boolean[]) => {
         socketServer.clients.forEach((c) => {
-            sendMessage(c, { type: "all-gpio", values: values });
+            sendAllGpioMessage(c, values);
         });
     });
 

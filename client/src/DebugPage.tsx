@@ -1,3 +1,6 @@
+import { Box } from "@radix-ui/themes";
+import { Layout } from "./components/Layout";
+
 export function DebugPage() {
-    return <div>nice</div>;
+    return <Box>this is the debug page</Box>;
 }

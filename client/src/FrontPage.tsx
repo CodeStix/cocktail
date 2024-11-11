@@ -1,5 +1,6 @@
 import { Flex, Text, Button, Box, Card } from "@radix-ui/themes";
 import { Link } from "react-router-dom";
+import { Layout } from "./components/Layout";
 
 type Drink = {
     id: number;
@@ -72,19 +73,10 @@ function DrinkCard(props: { drink: Drink }) {
 
 export function FrontPage() {
     return (
-        <Flex height="100%" direction="column">
-            <Flex style={{ alignContent: "start" }} display="flex" flexGrow="1" p="4" wrap="wrap" gap="3">
-                {/* <Button color="blue">Click me!</Button> */}
-
-                {DRINKS.map((drink) => (
-                    <DrinkCard drink={drink} key={drink.id} />
-                ))}
-            </Flex>
-            <Flex p="2" style={{ background: "var(--accent-4)", borderTop: "1px solid var(--accent-8)" }}>
-                <Button asChild>
-                    <Link to="/debug">Debug</Link>
-                </Button>
-            </Flex>
+        <Flex style={{ alignContent: "start" }} display="flex" flexGrow="1" p="4" wrap="wrap" gap="3">
+            {DRINKS.map((drink) => (
+                <DrinkCard drink={drink} key={drink.id} />
+            ))}
         </Flex>
     );
 }

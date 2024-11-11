@@ -41,42 +41,42 @@ export function DebugPage() {
     }
 
     return (
-        <Flex p="4" gap="4">
-            <Flex direction="column">
-                <Heading>Relay 12v</Heading>
-                <Table.Root size="1" style={{ alignItems: "center" }}>
-                    <Table.Header>
+        <Flex p="4" gap="4" direction="column" align="stretch">
+            {/* <Flex direction="column"> */}
+            <Heading>Relay 12v</Heading>
+            <Table.Root layout="fixed" size="1" style={{ alignItems: "center", width: "100%" }}>
+                <Table.Header>
+                    <Table.Row>
+                        <Table.ColumnHeaderCell>Enable</Table.ColumnHeaderCell>
+                        <Table.ColumnHeaderCell>Output</Table.ColumnHeaderCell>
+                        <Table.ColumnHeaderCell>Function</Table.ColumnHeaderCell>
+                    </Table.Row>
+                </Table.Header>
+                <Table.Body>
+                    {gpio?.map((output, i) => (
                         <Table.Row>
-                            <Table.ColumnHeaderCell>Enable</Table.ColumnHeaderCell>
-                            <Table.ColumnHeaderCell>Output</Table.ColumnHeaderCell>
-                            <Table.ColumnHeaderCell>Function</Table.ColumnHeaderCell>
+                            <Table.Cell>
+                                <Switch size="1" onCheckedChange={(checked) => updateGpio(i, checked)} checked={output.value} />
+                            </Table.Cell>
+                            <Table.Cell>{i < 16 ? <Text>12v relay {i}</Text> : <Text>24v relay {i - 16}</Text>}</Table.Cell>
+                            <Table.Cell>
+                                <Select.Root size="1" value={output.function ?? "None"} onValueChange={(value) => updateGpioFunction(i, value)}>
+                                    <Select.Trigger />
+                                    <Select.Content>
+                                        {gpioFunctions.map((e) => (
+                                            <Select.Item key={e} value={e}>
+                                                {e}
+                                            </Select.Item>
+                                        ))}
+                                    </Select.Content>
+                                </Select.Root>
+                            </Table.Cell>
                         </Table.Row>
-                    </Table.Header>
-                    <Table.Body>
-                        {gpio?.map((output, i) => (
-                            <Table.Row>
-                                <Table.Cell>
-                                    <Switch size="1" onCheckedChange={(checked) => updateGpio(i, checked)} checked={output.value} />
-                                </Table.Cell>
-                                <Table.Cell>{i < 16 ? <Text>12v relay {i}</Text> : <Text>24v relay {i - 16}</Text>}</Table.Cell>
-                                <Table.Cell>
-                                    <Select.Root size="1" value={output.function ?? "None"} onValueChange={(value) => updateGpioFunction(i, value)}>
-                                        <Select.Trigger />
-                                        <Select.Content>
-                                            {gpioFunctions.map((e) => (
-                                                <Select.Item key={e} value={e}>
-                                                    {e}
-                                                </Select.Item>
-                                            ))}
-                                        </Select.Content>
-                                    </Select.Root>
-                                </Table.Cell>
-                            </Table.Row>
-                        ))}
-                    </Table.Body>
-                </Table.Root>
-                {/* <pre>{JSON.stringify(gpio.relay, null, 2)}</pre> */}
-            </Flex>
+                    ))}
+                </Table.Body>
+            </Table.Root>
+            {/* <pre>{JSON.stringify(gpio.relay, null, 2)}</pre> */}
+            {/* </Flex> */}
         </Flex>
     );
 }

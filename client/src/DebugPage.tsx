@@ -1,42 +1,37 @@
-import { Box, Flex, Heading, Select, Switch, Table, Text } from "@radix-ui/themes";
+import { Box, Flex, Heading, Select, Switch, Table, Text, TextField } from "@radix-ui/themes";
 import { Layout } from "./components/Layout";
-import { ClientMessage, ServerMessage } from "cocktail-shared";
+import { ClientMessage, Output, ServerMessage } from "cocktail-shared";
 import { useEffect, useState } from "react";
 import useWebSocket, { ReadyState } from "react-use-websocket";
 import { SERVER_WS_URL } from "./util";
 
 export function DebugPage() {
     const { lastJsonMessage, sendJsonMessage, readyState } = useWebSocket<ClientMessage>(SERVER_WS_URL);
-    const [gpio, setGpio] = useState<{ value: boolean; function: string | null }[] | null>(null);
-    const [gpioFunctions, setGpioFunctions] = useState<string[]>([]);
+    const [outputs, setOutputs] = useState<Output[] | null>(null);
 
     useEffect(() => {
         if (!lastJsonMessage) return;
 
         console.log("lastJsonMessage", lastJsonMessage);
 
-        if (lastJsonMessage.type == "all-gpio") {
-            setGpio(lastJsonMessage.values);
-        } else if (lastJsonMessage.type === "all-gpio-functions") {
-            setGpioFunctions(lastJsonMessage.values);
+        if (lastJsonMessage.type == "all-outputs") {
+            setOutputs(lastJsonMessage.outputs);
         }
     }, [lastJsonMessage]);
 
     useEffect(() => {
         if (readyState === ReadyState.OPEN) {
-            sendJsonMessage({ type: "get-all-gpio" } as ServerMessage);
-            sendJsonMessage({ type: "get-all-gpio-functions" } as ServerMessage);
+            sendJsonMessage({ type: "get-all-outputs" } as ServerMessage);
         }
     }, [readyState]);
 
-    function updateGpio(idx: number, enable: boolean) {
-        let message: ServerMessage = { type: "set-gpio", index: idx, value: enable };
-        // console.log("setSwitchValue", message);
+    function setOutputEnabled(id: number, enabled: boolean) {
+        let message: ServerMessage = { type: "set-output-enabled", id: id, enabled: enabled };
         sendJsonMessage(message);
     }
 
-    function updateGpioFunction(idx: number, func: string) {
-        let message: ServerMessage = { type: "set-gpio-function", index: idx, function: func };
+    function updateOutput(id: number, values: { name?: string; index?: number }) {
+        let message: ServerMessage = { type: "update-output", id: id, name: values.name, index: values.index };
         sendJsonMessage(message);
     }
 
@@ -48,24 +43,39 @@ export function DebugPage() {
                 <Table.Header>
                     <Table.Row>
                         <Table.ColumnHeaderCell>Enable</Table.ColumnHeaderCell>
+                        <Table.ColumnHeaderCell>Name</Table.ColumnHeaderCell>
                         <Table.ColumnHeaderCell>Output</Table.ColumnHeaderCell>
-                        <Table.ColumnHeaderCell>Function</Table.ColumnHeaderCell>
                     </Table.Row>
                 </Table.Header>
                 <Table.Body>
-                    {gpio?.map((output, i) => (
-                        <Table.Row>
+                    {outputs?.map((output) => (
+                        <Table.Row key={output.id}>
                             <Table.Cell>
-                                <Switch size="1" onCheckedChange={(checked) => updateGpio(i, checked)} checked={output.value} />
+                                <Switch
+                                    size="1"
+                                    onCheckedChange={(checked) => setOutputEnabled(output.id, checked)}
+                                    disabled={output.enabled === undefined}
+                                    checked={output.enabled ?? false}
+                                />
                             </Table.Cell>
-                            <Table.Cell>{i < 16 ? <Text>12v relay {i}</Text> : <Text>24v relay {i - 16}</Text>}</Table.Cell>
                             <Table.Cell>
-                                <Select.Root size="1" value={output.function ?? "None"} onValueChange={(value) => updateGpioFunction(i, value)}>
+                                <TextField.Root
+                                    size="1"
+                                    placeholder="output name here"
+                                    defaultValue={output.name}
+                                    onBlur={(ev) => updateOutput(output.id, { name: ev.target.value })}
+                                />
+                            </Table.Cell>
+                            <Table.Cell>
+                                <Select.Root
+                                    size="1"
+                                    value={String(output.index)}
+                                    onValueChange={(value) => updateOutput(output.index, { index: parseInt(value) })}>
                                     <Select.Trigger />
                                     <Select.Content>
-                                        {gpioFunctions.map((e) => (
-                                            <Select.Item key={e} value={e}>
-                                                {e}
+                                        {new Array(32).fill(0).map((_, i) => (
+                                            <Select.Item key={i} value={String(i)}>
+                                                {i < 16 ? <>12v relay {i}</> : <>24v relay {i - 16}</>}
                                             </Select.Item>
                                         ))}
                                     </Select.Content>

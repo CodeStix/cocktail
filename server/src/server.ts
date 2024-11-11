@@ -1,5 +1,5 @@
 import express from "express";
-import { ClientMessage, Drink, ServerMessage } from "cocktail-shared";
+import { ClientMessage, Drink, ServerMessage, Ingredient } from "cocktail-shared";
 import cors from "cors";
 import ws from "ws";
 import { WebSocket } from "ws";
@@ -8,7 +8,16 @@ import { PinMode, PullUpDownMode, pinMode, pullUpDnControl } from "tinker-gpio";
 import { CocktailMachine } from ".";
 import i2c from "i2c-bus";
 import fs from "fs";
-import { getAllOutputs, getOutputById, insertDefaultOutputsIfNone, updateOutput } from "./db";
+import {
+    createIngredient,
+    deleteIngredient,
+    getAllOutputs,
+    getIngredients,
+    getOutputById,
+    insertDefaultOutputsIfNone,
+    updateIngredient,
+    updateOutput,
+} from "./db";
 
 const DRINKS: Drink[] = [
     {
@@ -43,11 +52,28 @@ const port = 8000;
 //     res.json({});
 // });
 
-// app.get("/drinks", cors(), (req, res) => {
-//     res.json({
-//         drinks: DRINKS,
-//     });
-// });
+app.get("/api/drinks", cors(), (req, res) => {
+    res.json({
+        drinks: DRINKS,
+    });
+});
+
+app.get("/api/ingredients", cors(), async (req, res) => {
+    res.json(await getIngredients());
+});
+
+app.post("/api/ingredients", cors(), async (req, res) => {
+    res.json(await createIngredient());
+});
+
+app.patch("/api/ingredients/:id", cors(), async (req, res) => {
+    res.json(await updateIngredient(parseInt(req.params.id), req.body));
+});
+
+app.delete("/api/ingredients/:id", cors(), async (req, res) => {
+    await deleteIngredient(parseInt(req.params.id));
+    res.json({});
+});
 
 function sendMessage(to: WebSocket, message: ClientMessage) {
     to.send(JSON.stringify(message));

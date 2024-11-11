@@ -14,7 +14,7 @@ function IngredientCard(props: { ingredient: Ingredient; onEdit: (ingredient: In
             style={{ maxWidth: "300px" }}
             asChild
             onClick={() => {
-                console.log("ingredient", ingredient);
+                props.onEdit(ingredient);
             }}>
             <button>
                 <Flex gap="3">
@@ -26,12 +26,16 @@ function IngredientCard(props: { ingredient: Ingredient; onEdit: (ingredient: In
                         {ingredient.imageUrl && <img style={{ objectFit: "cover" }} width="100%" height="100%" src={ingredient.imageUrl} />}
                     </Box>
                     <Flex flexGrow="1" direction="column">
-                        <Text as="p" size="2" weight="bold">
+                        <Text as="p" size="4" weight="bold">
                             {ingredient.name}
                         </Text>
 
-                        <Text as="p" size="1">
+                        <Text as="p" size="2">
                             {ingredient.remainingAmount}ml remaining
+                        </Text>
+
+                        <Text as="p" size="2" style={{ opacity: 0.5 }}>
+                            Connected to {ingredient.output?.name ?? "(nothing)"}
                         </Text>
 
                         <Button onClick={() => props.onEdit(ingredient)} tabIndex={-1} mt="auto" style={{ alignSelf: "end" }} color="blue" asChild>
@@ -45,19 +49,20 @@ function IngredientCard(props: { ingredient: Ingredient; onEdit: (ingredient: In
 }
 
 export function InventoryPage() {
-    const { data: ingredients } = useSWR<Ingredient[]>(SERVER_URL + "/api/ingredients", fetcher);
+    const { data: ingredients, mutate } = useSWR<Ingredient[]>(SERVER_URL + "/api/ingredients", fetcher);
     const { data: outputs } = useSWR<Output[]>(SERVER_URL + "/api/outputs", fetcher);
     const [edit, setEdit] = useState(false);
     const [editing, setEditing] = useState<Ingredient | null>(null);
     const [remainingAmountStr, setRemainingAmountStr] = useState("");
 
     async function updateIngredient() {
-        await fetchJson(SERVER_URL + "/api/ingredients/" + editing!.id, "PATCH", editing);
+        await fetchJson("/api/ingredients/" + editing!.id, "PATCH", editing);
         setEdit(false);
+        mutate();
     }
 
     async function newIngredient() {
-        const newIngredient = await fetchJson<Ingredient>(SERVER_URL + "/api/ingredients", "POST");
+        const newIngredient = await fetchJson<Ingredient>("/api/ingredients", "POST");
         setEditing(newIngredient);
         setEdit(true);
     }
@@ -88,7 +93,7 @@ export function InventoryPage() {
     // }, [readyState]);
 
     return (
-        <Flex direction="column" p="4">
+        <Flex direction="column" p="4" gap="3">
             <Flex>
                 <Heading>Ingredients</Heading>
                 <Box flexGrow="1"></Box>
@@ -112,7 +117,7 @@ export function InventoryPage() {
 
                     {editing && (
                         <Dialog.Content maxWidth="450px">
-                            <Dialog.Title>{editing?.name}</Dialog.Title>
+                            <Dialog.Title>Edit {editing?.name}</Dialog.Title>
 
                             <Flex direction="column" gap="3">
                                 <label>
@@ -127,7 +132,7 @@ export function InventoryPage() {
                                     </Text>
                                     <TextField.Root
                                         value={remainingAmountStr}
-                                        onBlur={(ev) => {
+                                        onChange={(ev) => {
                                             const str = ev.target.value;
                                             setRemainingAmountStr(str);
 
@@ -137,8 +142,8 @@ export function InventoryPage() {
                                             }
                                         }}
                                     />
-                                    <Flex>
-                                        {[250, 500, 750, 1000, 1500].map((e) => (
+                                    <Flex gap="1" mt="1">
+                                        {[0, 100, 250, 500, 750, 1000, 1500].map((e) => (
                                             <Button
                                                 size="1"
                                                 onClick={() =>
@@ -162,15 +167,16 @@ export function InventoryPage() {
 
                                 <label>
                                     <Text as="div" size="2" mb="1" weight="bold">
-                                        In fridge?
+                                        Connected to
                                     </Text>
                                     <Select.Root
                                         size="1"
+                                        required={false}
                                         value={editing.outputId === null ? "" : String(editing.outputId)}
                                         onValueChange={(value) => setEditing({ ...editing, outputId: value === "" ? null : parseInt(value) })}>
-                                        <Select.Trigger />
+                                        <Select.Trigger placeholder="select output" />
                                         <Select.Content>
-                                            <Select.Item value="">Disable output</Select.Item>
+                                            {/* <Select.Item value="">Disable output</Select.Item> */}
                                             {outputs?.map((output) => (
                                                 <Select.Item key={output.id} value={String(output.id)}>
                                                     {output.name}

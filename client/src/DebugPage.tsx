@@ -3,11 +3,12 @@ import { Layout } from "./components/Layout";
 import { ClientMessage, Output, ServerMessage } from "cocktail-shared";
 import { useEffect, useState } from "react";
 import useWebSocket, { ReadyState } from "react-use-websocket";
-import { SERVER_WS_URL, fetchJson } from "./util";
+import { SERVER_URL, SERVER_WS_URL, fetchJson, fetcher } from "./util";
+import useSWR from "swr";
 
 export function DebugPage() {
     const { lastJsonMessage } = useWebSocket<ClientMessage>(SERVER_WS_URL);
-    const [outputs, setOutputs] = useState<Output[] | null>(null);
+    const { data: outputs, mutate } = useSWR<Output[]>(SERVER_URL + "/api/outputs", fetcher);
 
     useEffect(() => {
         if (!lastJsonMessage) return;
@@ -15,12 +16,12 @@ export function DebugPage() {
         console.log("lastJsonMessage", lastJsonMessage);
 
         if (lastJsonMessage.type == "all-outputs") {
-            setOutputs(lastJsonMessage.outputs);
+            mutate(lastJsonMessage.outputs, { revalidate: false });
         }
     }, [lastJsonMessage]);
 
     async function setOutputEnabled(id: number, enabled: boolean) {
-        await fetchJson("/api/outputs/" + id + "/enable", "POST", { enabled });
+        await fetchJson("/api/outputs/" + id + "/enabled", "POST", { enabled });
     }
 
     async function updateOutput(id: number, values: { name?: string; index?: number }) {

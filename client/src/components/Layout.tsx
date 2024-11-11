@@ -12,8 +12,8 @@ export function Layout(props: { children?: React.ReactNode }) {
     }, [location.pathname]);
 
     return (
-        <Flex height="100%" direction="column">
-            <Flex direction="column" flexGrow="1">
+        <Flex maxHeight="100%" height="100%" direction="column" overflow="hidden">
+            <Flex direction="column" flexGrow="1" overflow="auto">
                 {props.children}
             </Flex>
             <Flex p="2" style={{ background: "var(--accent-3)", borderTop: "1px solid var(--accent-7)" }}>

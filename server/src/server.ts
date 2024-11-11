@@ -69,8 +69,12 @@ async function handleSocketMessage(sender: WebSocket, message: ServerMessage) {
             break;
         }
         case "set-all-gpio": {
-            await machine.relay.setAllGpio(message.relay);
-            await machine.relay24v.setAllGpio(message.relay24v);
+            if (message.relay !== undefined) {
+                await machine.relay.setAllGpio(message.relay);
+            }
+            if (message.relay24v !== undefined) {
+                await machine.relay24v.setAllGpio(message.relay24v);
+            }
             break;
         }
     }
@@ -116,6 +120,18 @@ async function main() {
 
         ws.on("error", (...args) => {
             console.log("Connection error", req.socket.remoteAddress, args);
+        });
+    });
+
+    machine.relay.on("set", (gpio: number) => {
+        socketServer.clients.forEach((c) => {
+            sendMessage(c, { type: "all-gpio", relay: gpio });
+        });
+    });
+
+    machine.relay24v.on("set", (gpio: number) => {
+        socketServer.clients.forEach((c) => {
+            sendMessage(c, { type: "all-gpio", relay24v: gpio });
         });
     });
 

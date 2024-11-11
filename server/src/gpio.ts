@@ -1,9 +1,12 @@
 import i2c from "i2c-bus";
+import { EventEmitter } from "events";
 
-export class PCF8575Driver {
+export class PCF8575Driver extends EventEmitter {
     private _cachedGpioBits: number | null = null;
 
-    constructor(private bus: i2c.PromisifiedBus, private address: number, private inverted = true) {}
+    constructor(private bus: i2c.PromisifiedBus, private address: number, private inverted = true) {
+        super();
+    }
 
     public clearCache() {
         this._cachedGpioBits = null;
@@ -24,6 +27,9 @@ export class PCF8575Driver {
             }
             this._cachedGpioBits = bits;
         }
+
+        super.emit("get", this._cachedGpioBits);
+
         return this._cachedGpioBits;
     }
 
@@ -37,6 +43,8 @@ export class PCF8575Driver {
         buffer[0] = bits & 0xff;
         buffer[1] = (bits >> 8) & 0xff;
         await this.bus.i2cWrite(this.address, buffer.length, buffer);
+
+        super.emit("set", bits);
     }
 
     public async getGpio(pos: number): Promise<boolean> {

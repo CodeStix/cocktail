@@ -2,30 +2,8 @@ import { Flex, Text, Button, Box, Card } from "@radix-ui/themes";
 import { Link } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { Drink } from "cocktail-shared";
-
-const DRINKS: Drink[] = [
-    {
-        id: 0,
-        name: "Mojito",
-        themeColor: "green",
-        description: "A well known and refreshing cocktail.",
-        imageUrl: "public/cocktails/1.jpg",
-    },
-    {
-        id: 1,
-        name: "Sex on the beach",
-        themeColor: "orange",
-        description: "Very sweet and tasty.",
-        imageUrl: "public/cocktails/2.jpg",
-    },
-    {
-        id: 2,
-        name: "Mai Tai",
-        themeColor: "blue",
-        description: "I don't know whats in it",
-        imageUrl: "public/cocktails/3.jpg",
-    },
-];
+import useSWR from "swr";
+import { SERVER_URL, fetcher } from "./util";
 
 function DrinkCard(props: { drink: Drink }) {
     const drink = props.drink;
@@ -65,9 +43,11 @@ function DrinkCard(props: { drink: Drink }) {
 }
 
 export function FrontPage() {
+    const { data } = useSWR<{ drinks: Drink[] }>(SERVER_URL + "/drinks", fetcher);
+
     return (
         <Flex style={{ alignContent: "start" }} display="flex" flexGrow="1" p="4" wrap="wrap" gap="3">
-            {DRINKS.map((drink) => (
+            {data?.drinks.map((drink) => (
                 <DrinkCard drink={drink} key={drink.id} />
             ))}
         </Flex>

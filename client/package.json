@@ -11,10 +11,11 @@
   },
   "dependencies": {
     "@radix-ui/themes": "^3.1.5",
+    "cocktail-shared": "file:../shared",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.28.0",
-    "cocktail-shared": "file:../shared"
+    "swr": "^2.2.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.13.0",

@@ -3,6 +3,10 @@ import { ClientMessage, Drink, ServerMessage } from "cocktail-shared";
 import cors from "cors";
 import ws from "ws";
 import { WebSocket } from "ws";
+import chalk from "chalk";
+import { PinMode, PullUpDownMode, pinMode, pullUpDnControl } from "tinker-gpio";
+import { CocktailMachine } from ".";
+import i2c from "i2c-bus";
 
 const DRINKS: Drink[] = [
     {
@@ -28,6 +32,11 @@ const DRINKS: Drink[] = [
     },
 ];
 
+let machine: CocktailMachine;
+
+const app = express();
+const port = 8000;
+
 // app.get("/", cors(), (req, res) => {
 //     res.json({});
 // });
@@ -37,24 +46,6 @@ const DRINKS: Drink[] = [
 //         drinks: DRINKS,
 //     });
 // });
-
-const app = express();
-const port = 8000;
-
-const server = app.listen(port, () => {
-    console.log(`App listening on port ${port}`);
-});
-
-const socketServer = new WebSocket.Server({
-    noServer: true,
-    path: "/socket",
-});
-
-server.on("upgrade", (request, socket, head) => {
-    socketServer.handleUpgrade(request, socket, head, (websocket) => {
-        socketServer.emit("connection", websocket, request);
-    });
-});
 
 function sendMessage(to: WebSocket, message: ClientMessage) {
     to.send(JSON.stringify(message));
@@ -72,23 +63,50 @@ function handleSocketMessage(sender: WebSocket, message: ServerMessage) {
     }
 }
 
-socketServer.on("connection", (ws, req) => {
-    console.log("New connection", req.socket.remoteAddress);
+async function main() {
+    console.time(chalk.green("Start setup"));
 
-    ws.on("message", (data, _) => {
-        try {
-            const message = JSON.parse(data.toString()) as ServerMessage;
-            handleSocketMessage(ws, message);
-        } catch (ex) {
-            console.error("Could not handle message from " + req.socket.remoteAddress, ex);
-        }
+    let bus = await i2c.openPromisified(6);
+    machine = new CocktailMachine(bus);
+    await machine.initialize();
+
+    const server = app.listen(port, () => {
+        console.log(`App listening on port ${port}`);
     });
 
-    ws.on("close", (code, reason) => {
-        console.log("Connection closed", code, reason.toString());
+    const socketServer = new WebSocket.Server({
+        noServer: true,
+        path: "/socket",
     });
 
-    ws.on("error", (...args) => {
-        console.log("Connection error", req.socket.remoteAddress, args);
+    server.on("upgrade", (request, socket, head) => {
+        socketServer.handleUpgrade(request, socket, head, (websocket) => {
+            socketServer.emit("connection", websocket, request);
+        });
     });
-});
+
+    socketServer.on("connection", (ws, req) => {
+        console.log("New connection", req.socket.remoteAddress);
+
+        ws.on("message", (data, _) => {
+            try {
+                const message = JSON.parse(data.toString()) as ServerMessage;
+                handleSocketMessage(ws, message);
+            } catch (ex) {
+                console.error("Could not handle message from " + req.socket.remoteAddress, ex);
+            }
+        });
+
+        ws.on("close", (code, reason) => {
+            console.log("Connection closed", code, reason.toString());
+        });
+
+        ws.on("error", (...args) => {
+            console.log("Connection error", req.socket.remoteAddress, args);
+        });
+    });
+
+    console.timeEnd(chalk.green("Start setup"));
+}
+
+main();

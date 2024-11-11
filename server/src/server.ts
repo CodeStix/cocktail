@@ -19,6 +19,8 @@ import {
     updateOutput,
 } from "./db";
 import { json } from "body-parser";
+import multer from "multer";
+import path from "path";
 
 const DRINKS: Drink[] = [
     {
@@ -49,9 +51,11 @@ let machine: CocktailMachine;
 const app = express();
 const port = 8000;
 
-// app.get("/", cors(), (req, res) => {
-//     res.json({});
-// });
+const UPLOADS_FOLDER_PATH = path.join(__dirname, "..", "upload");
+
+const upload = multer({
+    dest: UPLOADS_FOLDER_PATH,
+});
 
 app.use(cors());
 
@@ -105,6 +109,16 @@ app.delete("/api/ingredients/:id", json(), async (req, res) => {
     await deleteIngredient(parseInt(req.params.id));
     res.json({});
 });
+
+app.post("/api/upload", upload.single("file"), (req, res) => {
+    const filePath = req.file!.path;
+    const ext = path.extname(req.file!.originalname);
+    fs.renameSync(filePath, filePath + ext);
+    console.log("Uploaded to", filePath);
+    res.json({ url: "/uploads/" + req.file!.filename + ext });
+});
+
+app.use("/uploads", express.static(UPLOADS_FOLDER_PATH));
 
 function sendMessage(to: WebSocket, message: ClientMessage) {
     to.send(JSON.stringify(message));

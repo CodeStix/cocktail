@@ -2,3 +2,4 @@
 /dist
 /outputs.json
 *.sqlite3
+/upload

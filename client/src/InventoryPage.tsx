@@ -6,6 +6,7 @@ import { SERVER_URL, SERVER_WS_URL, fetchJson, fetcher } from "./util";
 import { useEffect, useState } from "react";
 import useSWR from "swr";
 import { Link } from "react-router-dom";
+import { UploadButton } from "./components/UploadButton";
 
 function IngredientCard(props: { ingredient: Ingredient; onEdit: (ingredient: Ingredient) => void }) {
     const ingredient = props.ingredient;
@@ -23,7 +24,9 @@ function IngredientCard(props: { ingredient: Ingredient; onEdit: (ingredient: In
                         width="100px"
                         height="100px"
                         style={{ background: "var(--accent-5)", borderRadius: "var(--radius-1)", overflow: "hidden" }}>
-                        {ingredient.imageUrl && <img style={{ objectFit: "cover" }} width="100%" height="100%" src={ingredient.imageUrl} />}
+                        {ingredient.imageUrl && (
+                            <img style={{ objectFit: "cover" }} width="100%" height="100%" src={SERVER_URL + ingredient.imageUrl} />
+                        )}
                     </Box>
                     <Flex flexGrow="1" direction="column">
                         <Text as="p" size="4" weight="bold">
@@ -99,7 +102,7 @@ export function InventoryPage() {
                 <Box flexGrow="1"></Box>
                 <Button onClick={() => newIngredient()}>New</Button>
             </Flex>
-            <Flex wrap="wrap">
+            <Flex wrap="wrap" gap="3">
                 {ingredients?.map((e) => (
                     <IngredientCard
                         ingredient={e}
@@ -120,6 +123,19 @@ export function InventoryPage() {
                             <Dialog.Title>Edit {editing?.name}</Dialog.Title>
 
                             <Flex direction="column" gap="3">
+                                <div>
+                                    <Text as="label" size="2" mb="1" weight="bold">
+                                        Image
+                                    </Text>
+                                    <Flex gap="1">
+                                        <UploadButton onUploaded={(url) => setEditing({ ...editing, imageUrl: url })} />
+                                        {editing.imageUrl && (
+                                            <Button color="red" onClick={() => setEditing({ ...editing, imageUrl: null })}>
+                                                Remove image
+                                            </Button>
+                                        )}
+                                    </Flex>
+                                </div>
                                 <label>
                                     <Text as="div" size="2" mb="1" weight="bold">
                                         Name
@@ -170,7 +186,6 @@ export function InventoryPage() {
                                         Connected to
                                     </Text>
                                     <Select.Root
-                                        size="1"
                                         required={false}
                                         value={editing.outputId === null ? "" : String(editing.outputId)}
                                         onValueChange={(value) => setEditing({ ...editing, outputId: value === "" ? null : parseInt(value) })}>

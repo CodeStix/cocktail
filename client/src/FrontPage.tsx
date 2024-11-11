@@ -1,9 +1,11 @@
 import { Flex, Text, Button, Box, Card } from "@radix-ui/themes";
 import { Link } from "react-router-dom";
 import { Layout } from "./components/Layout";
-import { Drink } from "cocktail-shared";
+import { ClientMessage, Drink, ServerMessage } from "cocktail-shared";
 import useSWR from "swr";
-import { SERVER_URL, fetcher } from "./util";
+import { SERVER_URL, SERVER_WS_URL, fetcher } from "./util";
+import useWebSocket from "react-use-websocket";
+import { useEffect, useState } from "react";
 
 function DrinkCard(props: { drink: Drink }) {
     const drink = props.drink;
@@ -43,11 +45,24 @@ function DrinkCard(props: { drink: Drink }) {
 }
 
 export function FrontPage() {
-    const { data } = useSWR<{ drinks: Drink[] }>(SERVER_URL + "/drinks", fetcher);
+    // const { data } = useSWR<{ drinks: Drink[] }>(SERVER_URL + "/drinks", fetcher);
+    const { lastJsonMessage } = useWebSocket<ClientMessage>(SERVER_WS_URL);
+    const [drinks, setDrinks] = useState<Drink[] | null>(null);
+
+    useEffect(() => {
+        if (!lastJsonMessage) return;
+
+        console.log("lastJsonMessage", lastJsonMessage);
+
+        if (lastJsonMessage.type == "drinks") {
+            setDrinks(lastJsonMessage.drinks);
+        }
+    }, [lastJsonMessage]);
 
     return (
         <Flex style={{ alignContent: "start" }} display="flex" flexGrow="1" p="4" wrap="wrap" gap="3">
-            {data?.drinks.map((drink) => (
+            {drinks === null && <Text style={{ fontWeight: "bold" }}>Loading drinks...</Text>}
+            {drinks?.map((drink) => (
                 <DrinkCard drink={drink} key={drink.id} />
             ))}
         </Flex>

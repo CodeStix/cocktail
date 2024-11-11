@@ -5,3 +5,12 @@ export type Drink = {
     themeColor: string;
     imageUrl?: string;
 };
+
+export type ClientMessage = {
+    type: "drinks";
+    drinks: Drink[];
+};
+
+export type ServerMessage = {
+    type: "get-drinks";
+};

@@ -10,6 +10,8 @@ type OutputFunctionPerRelay = {
 let relayConfig: OutputFunctionPerRelay = {};
 
 export enum OutputFunction {
+    None = 0,
+
     MainWater = 1,
     WastePump,
     NormalWater,
@@ -35,6 +37,14 @@ const RELAY_FUNC_FILE = "outputs.json";
 
 export function getRelayIdxForFunction(fn: OutputFunction) {
     return relayConfig[fn];
+}
+
+export function getFunctionForRelayIdx(idx: number): OutputFunction {
+    let res = Object.entries(relayConfig).find(([, { index }]) => index === idx);
+    if (!res) {
+        return OutputFunction.None;
+    }
+    return OutputFunction[res[0] as keyof typeof OutputFunction];
 }
 
 export function setRelayFunction(fn: OutputFunction, relayIdx: number, save = true) {

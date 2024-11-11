@@ -6,26 +6,25 @@ export type Drink = {
     imageUrl?: string;
 };
 
+export type Output = {
+    id: number;
+    index: number;
+    name: string;
+    enabled?: boolean;
+};
+
 export type ClientMessage =
     | {
           type: "drinks";
           drinks: Drink[];
       }
     | {
-          type: "all-gpio";
-          values: {
-              value: boolean;
-              function: string | null;
-          }[];
-      }
-    | {
-          type: "all-gpio-functions";
-          values: string[];
+          type: "all-outputs";
+          outputs: Output[];
       };
 
 export type ServerMessage =
     | { type: "get-drinks" }
-    | { type: "get-all-gpio" }
-    | { type: "set-gpio"; index: number; value: boolean }
-    | { type: "get-all-gpio-functions" }
-    | { type: "set-gpio-function"; index: number; function: string };
+    | { type: "get-all-outputs" }
+    | { type: "update-output"; id: number; name?: string; index?: number }
+    | { type: "set-output-enabled"; id: number; enabled: boolean };

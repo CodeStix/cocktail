@@ -8,7 +8,7 @@ import { PinMode, PullUpDownMode, pinMode, pullUpDnControl } from "tinker-gpio";
 import { CocktailMachine } from ".";
 import i2c from "i2c-bus";
 import fs from "fs";
-import { OutputFunction, getFunctionForRelayIdx, getRelayIdxForFunction, setRelayFunction } from "./output";
+import { getAllOutputs, getOutputById, insertDefaultOutputsIfNone, updateOutput } from "./db";
 
 const DRINKS: Drink[] = [
     {
@@ -53,13 +53,24 @@ function sendMessage(to: WebSocket, message: ClientMessage) {
     to.send(JSON.stringify(message));
 }
 
-async function sendAllGpioMessage(sender: WebSocket, values: boolean[]) {
+// async function sendAllGpioMessage(sender: WebSocket, values: boolean[]) {
+//     sendMessage(sender, {
+//         type: "all-gpio",
+//         values: values.map((value, idx) => ({
+//             value: value,
+//             function: OutputFunction[getFunctionForRelayIdx(idx)],
+//         })),
+//     });
+// }
+
+async function sendAllOutputsMessage(sender: WebSocket) {
+    const outputs = await getAllOutputs();
+    for (const output of outputs) {
+        output.enabled = await machine.relays.getGpio(output.index);
+    }
     sendMessage(sender, {
-        type: "all-gpio",
-        values: values.map((value, idx) => ({
-            value: value,
-            function: OutputFunction[getFunctionForRelayIdx(idx)],
-        })),
+        type: "all-outputs",
+        outputs,
     });
 }
 
@@ -73,24 +84,17 @@ async function handleSocketMessage(sender: WebSocket, message: ServerMessage) {
             });
             break;
         }
-        case "get-all-gpio": {
-            sendAllGpioMessage(sender, await machine.relays.getAllGpio());
+        case "get-all-outputs": {
+            await sendAllOutputsMessage(sender);
             break;
         }
-        case "set-gpio": {
-            await machine.relays.setGpio(message.index, message.value);
+        case "set-output-enabled": {
+            await machine.relays.setGpio((await getOutputById(message.id)).index, message.enabled);
             break;
         }
-        case "get-all-gpio-functions": {
-            sendMessage(sender, {
-                type: "all-gpio-functions",
-                values: Object.keys(OutputFunction).filter((e) => isNaN(Number(e))),
-            });
-            break;
-        }
-        case "set-gpio-function": {
-            setRelayFunction(OutputFunction[message.function as keyof typeof OutputFunction], message.index);
-            sendAllGpioMessage(sender, await machine.relays.getAllGpio());
+        case "update-output": {
+            await updateOutput(message.id, { index: message.index, name: message.name });
+            await sendAllOutputsMessage(sender);
             break;
         }
         default: {
@@ -145,9 +149,11 @@ async function main() {
 
     machine.relays.on("set", (values: boolean[]) => {
         socketServer.clients.forEach((c) => {
-            sendAllGpioMessage(c, values);
+            void sendAllOutputsMessage(c);
         });
     });
+
+    await insertDefaultOutputsIfNone();
 
     console.timeEnd(chalk.green("Start setup"));
 }

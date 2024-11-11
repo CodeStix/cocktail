@@ -37,13 +37,14 @@ model RecipeIngredient {
 
 model Ingredient {
   id           Int                @id @default(autoincrement())
-  output       Output?            @relation(fields: [outputIndex], references: [index])
-  outputIndex  Int?               @unique
+  output       Output?            @relation(fields: [outputId], references: [id])
+  outputId     Int?               @unique
   usedInRecipe RecipeIngredient[]
 }
 
 model Output {
-  index      Int         @id
-  name       String
-  ingredient Ingredient?
+  id              Int         @id @default(autoincrement())
+  index           Int
+  name            String
+  boundIngredient Ingredient?
 }

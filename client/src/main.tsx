@@ -8,7 +8,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 createRoot(document.getElementById("root")!).render(
     <StrictMode>
-        <Theme accentColor="blue" radius="large">
+        <Theme accentColor="gray" radius="large" appearance="dark">
             <BrowserRouter>
                 <Routes>
                     <Route path="/" Component={App} />

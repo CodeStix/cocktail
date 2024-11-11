@@ -1,5 +1,5 @@
 import i2c from "i2c-bus";
-import { PCF8575Driver, RelayDriver as MultiPCF8575Driver } from "./gpio";
+import { PCF8575Driver, RelayDriver } from "./gpio";
 import { PCA9685Driver } from "./pwm";
 import { ADS1115 } from "./ads";
 import { digitalRead, digitalWrite, pinMode, PinMode, pullUpDnControl, PullUpDownMode } from "tinker-gpio";
@@ -40,9 +40,10 @@ const BUTTON_ROOM_TEMP_WATER = 1;
 const BUTTON_SODA = 0;
 
 export class CocktailMachine {
-    relay!: PCF8575Driver;
-    relay24v!: PCF8575Driver;
+    private relay12v!: PCF8575Driver;
+    private relay24v!: PCF8575Driver;
     // private ads!: ADS1115;
+    relays!: RelayDriver;
     led!: PCA9685Driver;
     flowCounter!: CounterDriver;
 
@@ -68,10 +69,10 @@ export class CocktailMachine {
         console.timeEnd(chalk.green("Setup GPIO expander driver 24v"));
 
         console.time(chalk.green("Setup GPIO expander driver 12v"));
-        this.relay = new PCF8575Driver(this.bus, 33);
+        this.relay12v = new PCF8575Driver(this.bus, 33);
         console.timeEnd(chalk.green("Setup GPIO expander driver 12v"));
-        // this.relays = new MultiPCF8575Driver([relay, relay2]);
-        // await this.relays.clearAll();
+        this.relays = new RelayDriver([this.relay12v, this.relay24v]);
+        await this.relays.clearAll();
 
         // console.time(chalk.green("Setup ADS driver"));
         // this.ads = new ADS1115(this.bus, 0x48);
@@ -165,11 +166,11 @@ export class CocktailMachine {
         try {
             switch (newState) {
                 case State.IDLE: {
-                    await this.relay.setAllGpio(0);
+                    await this.relay12v.setAllGpio(0);
 
                     if (state === State.SPARKLING_WATER || state === State.SODA) {
-                        await this.relay.setGpio(VALVE_WATER_MAIN, true);
-                        await this.relay.setGpio(VALVE_ROOM_TEMP_WATER, true);
+                        await this.relay12v.setGpio(VALVE_WATER_MAIN, true);
+                        await this.relay12v.setGpio(VALVE_ROOM_TEMP_WATER, true);
                         this.stopWaterWastingAt = now + 1500;
                     }
 
@@ -178,24 +179,24 @@ export class CocktailMachine {
 
                 case State.SODA:
                 case State.SPARKLING_WATER: {
-                    await this.relay.setGpio(VALVE_SPARKLING_WATER, true);
-                    await this.relay.setGpio(VALVE_WATER_MAIN, true);
+                    await this.relay12v.setGpio(VALVE_SPARKLING_WATER, true);
+                    await this.relay12v.setGpio(VALVE_WATER_MAIN, true);
 
                     this.stopWaterWastingAt = now + 700;
                     break;
                 }
 
                 case State.COLD_WATER: {
-                    await this.relay.setGpio(VALVE_COLD_WATER, true);
-                    await this.relay.setGpio(VALVE_WATER_MAIN, true);
+                    await this.relay12v.setGpio(VALVE_COLD_WATER, true);
+                    await this.relay12v.setGpio(VALVE_WATER_MAIN, true);
 
                     this.stopWaterWastingAt = now + 700;
                     break;
                 }
 
                 case State.ROOM_TEMP_WATER: {
-                    await this.relay.setGpio(VALVE_ROOM_TEMP_WATER, true);
-                    await this.relay.setGpio(VALVE_WATER_MAIN, true);
+                    await this.relay12v.setGpio(VALVE_ROOM_TEMP_WATER, true);
+                    await this.relay12v.setGpio(VALVE_WATER_MAIN, true);
 
                     this.stopWaterWastingAt = now + 700;
                     break;
@@ -269,8 +270,8 @@ export class CocktailMachine {
                         if (now >= this.stopWaterWastingAt) {
                             console.log(chalk.gray("Stopping water wasting"));
                             this.stopWaterWastingAt = Number.MAX_SAFE_INTEGER;
-                            await this.relay.setGpio(VALVE_ROOM_TEMP_WATER, false);
-                            await this.relay.setGpio(VALVE_WATER_MAIN, false);
+                            await this.relay12v.setGpio(VALVE_ROOM_TEMP_WATER, false);
+                            await this.relay12v.setGpio(VALVE_WATER_MAIN, false);
                         }
 
                         break;
@@ -286,11 +287,11 @@ export class CocktailMachine {
                         if (now >= this.stopWaterWastingAt) {
                             console.log(chalk.gray("Stopping cold water wasting"));
                             this.stopWaterWastingAt = Number.MAX_SAFE_INTEGER;
-                            await this.relay.setGpio(VALVE_COLD_WATER, false);
+                            await this.relay12v.setGpio(VALVE_COLD_WATER, false);
                         }
 
                         if (this.stopWaterWastingAt === Number.MAX_SAFE_INTEGER && changedButtons[BUTTON_DISPENSE]) {
-                            await this.relay.setGpio(VALVE_COLD_WATER, buttonStates[BUTTON_DISPENSE]);
+                            await this.relay12v.setGpio(VALVE_COLD_WATER, buttonStates[BUTTON_DISPENSE]);
                         }
 
                         break;
@@ -306,11 +307,11 @@ export class CocktailMachine {
                         if (now >= this.stopWaterWastingAt) {
                             console.log(chalk.gray("Stopping sparkling water wasting"));
                             this.stopWaterWastingAt = Number.MAX_SAFE_INTEGER;
-                            await this.relay.setGpio(VALVE_SPARKLING_WATER, false);
+                            await this.relay12v.setGpio(VALVE_SPARKLING_WATER, false);
                         }
 
                         if (this.stopWaterWastingAt === Number.MAX_SAFE_INTEGER && changedButtons[BUTTON_DISPENSE]) {
-                            await this.relay.setGpio(VALVE_SPARKLING_WATER, buttonStates[BUTTON_DISPENSE]);
+                            await this.relay12v.setGpio(VALVE_SPARKLING_WATER, buttonStates[BUTTON_DISPENSE]);
                         }
 
                         break;
@@ -326,11 +327,11 @@ export class CocktailMachine {
                         if (now >= this.stopWaterWastingAt) {
                             console.log(chalk.gray("Stopping room temp water wasting"));
                             this.stopWaterWastingAt = Number.MAX_SAFE_INTEGER;
-                            await this.relay.setGpio(VALVE_ROOM_TEMP_WATER, false);
+                            await this.relay12v.setGpio(VALVE_ROOM_TEMP_WATER, false);
                         }
 
                         if (this.stopWaterWastingAt === Number.MAX_SAFE_INTEGER && changedButtons[BUTTON_DISPENSE]) {
-                            await this.relay.setGpio(VALVE_ROOM_TEMP_WATER, buttonStates[BUTTON_DISPENSE]);
+                            await this.relay12v.setGpio(VALVE_ROOM_TEMP_WATER, buttonStates[BUTTON_DISPENSE]);
                         }
 
                         break;
@@ -346,11 +347,11 @@ export class CocktailMachine {
                         if (now >= this.stopWaterWastingAt) {
                             console.log(chalk.gray("Stopping sparkling water wasting"));
                             this.stopWaterWastingAt = Number.MAX_SAFE_INTEGER;
-                            await this.relay.setGpio(VALVE_SPARKLING_WATER, false);
+                            await this.relay12v.setGpio(VALVE_SPARKLING_WATER, false);
                         }
 
                         if (this.stopWaterWastingAt === Number.MAX_SAFE_INTEGER && changedButtons[BUTTON_DISPENSE]) {
-                            await this.relay.setGpio(VALVE_SPARKLING_WATER, buttonStates[BUTTON_DISPENSE]);
+                            await this.relay12v.setGpio(VALVE_SPARKLING_WATER, buttonStates[BUTTON_DISPENSE]);
                             // await this.relay.setGpio(PUMP_1, buttonStates[BUTTON_DISPENSE]);
                             await this.relay24v.setGpio(8, buttonStates[BUTTON_DISPENSE]);
                         }

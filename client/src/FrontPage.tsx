@@ -1,14 +1,7 @@
 import { Flex, Text, Button, Box, Card } from "@radix-ui/themes";
 import { Link } from "react-router-dom";
 import { Layout } from "./components/Layout";
-
-type Drink = {
-    id: number;
-    name: string;
-    description?: string;
-    themeColor: string;
-    imageUrl?: string;
-};
+import { Drink } from "cocktail-shared";
 
 const DRINKS: Drink[] = [
     {
@@ -62,7 +55,7 @@ function DrinkCard(props: { drink: Drink }) {
                             </Text>
                         )}
                         <Button tabIndex={-1} mt="auto" style={{ alignSelf: "end" }} color="blue">
-                            Maakt dit!
+                            Mix this!
                         </Button>
                     </Flex>
                 </Flex>

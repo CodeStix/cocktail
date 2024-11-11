@@ -7,6 +7,7 @@ import { FrontPage } from "./FrontPage.tsx";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { DebugPage } from "./DebugPage.tsx";
 import { Layout } from "./components/Layout.tsx";
+import { InventoryPage } from "./InventoryPage.tsx";
 
 createRoot(document.getElementById("root")!).render(
     <StrictMode>
@@ -16,6 +17,7 @@ createRoot(document.getElementById("root")!).render(
                     <Routes>
                         <Route path="/" Component={FrontPage} />
                         <Route path="/debug" Component={DebugPage} />
+                        <Route path="/inventory" Component={InventoryPage} />
                     </Routes>
                 </Layout>
             </BrowserRouter>

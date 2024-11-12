@@ -20,7 +20,7 @@ function DrinkCard(props: { drink: Drink }) {
                         width="100px"
                         height="100px"
                         style={{ background: "var(--accent-5)", borderRadius: "var(--radius-1)", overflow: "hidden" }}>
-                        {drink.imageUrl && <img style={{ objectFit: "cover" }} width="100%" height="100%" src={drink.imageUrl} />}
+                        {drink.imageUrl && <img style={{ objectFit: "cover" }} width="100%" height="100%" src={SERVER_URL + drink.imageUrl} />}
                     </Box>
                     <Flex flexGrow="1" direction="column">
                         <Text as="div" size="2" weight="bold">

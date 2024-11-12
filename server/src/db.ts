@@ -1,6 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import chalk from "chalk";
-import { Ingredient, Output } from "cocktail-shared";
+import { Ingredient, Output, Recipe } from "cocktail-shared";
 
 export const database = new PrismaClient();
 
@@ -120,4 +120,176 @@ export async function createIngredient(): Promise<Ingredient> {
         outputId: null,
         imageUrl: null,
     };
+}
+
+export async function getRecipe(id: number): Promise<Recipe | null> {
+    return await database.recipe.findUnique({
+        where: {
+            id: id,
+        },
+        select: {
+            id: true,
+            description: true,
+            imageUrl: true,
+            name: true,
+            themeColor: true,
+            totalAmount: true,
+            ingredients: {
+                select: {
+                    amount: true,
+                    order: true,
+                    ingredientId: true,
+                    ingredient: {
+                        select: {
+                            id: true,
+                            imageUrl: true,
+                            inFridge: true,
+                            name: true,
+                            remainingAmount: true,
+                            outputId: true,
+                        },
+                    },
+                },
+            },
+        },
+    });
+}
+
+export async function getRecipes(): Promise<Recipe[]> {
+    const rec = await database.recipe.findMany({
+        select: {
+            id: true,
+            description: true,
+            imageUrl: true,
+            name: true,
+            themeColor: true,
+            totalAmount: true,
+            ingredients: {
+                select: {
+                    amount: true,
+                    order: true,
+                    ingredientId: true,
+                    ingredient: {
+                        select: {
+                            id: true,
+                            imageUrl: true,
+                            inFridge: true,
+                            name: true,
+                            remainingAmount: true,
+                            outputId: true,
+                        },
+                    },
+                },
+            },
+        },
+    });
+    return rec;
+}
+
+export async function createRecipe(): Promise<Recipe> {
+    const rec = await database.recipe.create({
+        data: {
+            name: "",
+            description: "",
+            themeColor: "#ff0000",
+            totalAmount: 300,
+        },
+        select: {
+            id: true,
+            description: true,
+            imageUrl: true,
+            name: true,
+            themeColor: true,
+            totalAmount: true,
+            ingredients: {
+                select: {
+                    amount: true,
+                    order: true,
+                    ingredientId: true,
+                    ingredient: {
+                        select: {
+                            id: true,
+                            imageUrl: true,
+                            inFridge: true,
+                            name: true,
+                            remainingAmount: true,
+                            outputId: true,
+                        },
+                    },
+                },
+            },
+        },
+    });
+    return rec;
+}
+
+export async function updateRecipe(id: number, data: Partial<Recipe>): Promise<Recipe> {
+    return await database.recipe.update({
+        where: {
+            id: id,
+        },
+        data: {
+            description: data.description,
+            name: data.name,
+            imageUrl: data.imageUrl,
+            themeColor: data.themeColor,
+            totalAmount: data.totalAmount,
+            ingredients: data.ingredients
+                ? {
+                      set: data.ingredients.map((ingr) => ({
+                          recipeId_ingredientId: {
+                              ingredientId: ingr.ingredientId,
+                              recipeId: id,
+                          },
+                          amount: ingr.amount,
+                          order: ingr.order,
+                      })),
+                  }
+                : undefined,
+        },
+        select: {
+            id: true,
+            description: true,
+            imageUrl: true,
+            name: true,
+            themeColor: true,
+            totalAmount: true,
+            ingredients: {
+                select: {
+                    amount: true,
+                    order: true,
+                    ingredientId: true,
+                    ingredient: {
+                        select: {
+                            id: true,
+                            imageUrl: true,
+                            inFridge: true,
+                            name: true,
+                            remainingAmount: true,
+                            outputId: true,
+                        },
+                    },
+                },
+            },
+        },
+    });
+
+    // for (let ingr of data.ingredients ?? []) {
+    //     await database.recipeIngredient.upsert({
+    //         where: {
+    //             recipeId_ingredientId: {
+    //                 ingredientId: ingr.ingredientId,
+    //                 recipeId: id,
+    //             },
+    //         },
+    //     });
+    // }
+}
+
+export async function deleteRecipe(id: number) {
+    await database.recipe.delete({
+        where: {
+            id: id,
+        },
+    });
 }

@@ -1,5 +1,5 @@
 import express from "express";
-import { ClientMessage, Drink, ServerMessage, Ingredient } from "cocktail-shared";
+import { ClientMessage, ServerMessage, Ingredient } from "cocktail-shared";
 import cors from "cors";
 import ws from "ws";
 import { WebSocket } from "ws";
@@ -10,41 +10,46 @@ import i2c from "i2c-bus";
 import fs from "fs";
 import {
     createIngredient,
+    createRecipe,
     deleteIngredient,
+    deleteRecipe,
     getAllOutputs,
     getIngredients,
     getOutputById,
+    getRecipe,
+    getRecipes,
     insertDefaultOutputsIfNone,
     updateIngredient,
     updateOutput,
+    updateRecipe,
 } from "./db";
 import { json } from "body-parser";
 import multer from "multer";
 import path from "path";
 
-const DRINKS: Drink[] = [
-    {
-        id: 0,
-        name: "Mojito",
-        themeColor: "green",
-        description: "A well known and refreshing cocktail.",
-        imageUrl: "public/cocktails/1.jpg",
-    },
-    {
-        id: 1,
-        name: "Sex on the beach",
-        themeColor: "orange",
-        description: "Very sweet and tasty.",
-        imageUrl: "public/cocktails/2.jpg",
-    },
-    {
-        id: 2,
-        name: "Mai Tai",
-        themeColor: "blue",
-        description: "I don't know whats in it",
-        imageUrl: "public/cocktails/3.jpg",
-    },
-];
+// const DRINKS: Drink[] = [
+//     {
+//         id: 0,
+//         name: "Mojito",
+//         themeColor: "green",
+//         description: "A well known and refreshing cocktail.",
+//         imageUrl: "public/cocktails/1.jpg",
+//     },
+//     {
+//         id: 1,
+//         name: "Sex on the beach",
+//         themeColor: "orange",
+//         description: "Very sweet and tasty.",
+//         imageUrl: "public/cocktails/2.jpg",
+//     },
+//     {
+//         id: 2,
+//         name: "Mai Tai",
+//         themeColor: "blue",
+//         description: "I don't know whats in it",
+//         imageUrl: "public/cocktails/3.jpg",
+//     },
+// ];
 
 let machine: CocktailMachine;
 
@@ -52,7 +57,7 @@ const app = express();
 const port = 8000;
 
 const PUBLIC_FOLDER_PATH = path.join(__dirname, "..", "public");
-const UPLOADS_FOLDER_PATH = path.join(PUBLIC_FOLDER_PATH, "upload");
+const UPLOADS_FOLDER_PATH = path.join(PUBLIC_FOLDER_PATH, "uploads");
 
 // chromium --kiosk --force-device-scale-factor=1.5 http://192.168.0.55:8000/
 
@@ -67,10 +72,25 @@ app.use((req, res, next) => {
     next();
 });
 
-app.get("/api/drinks", cors(), (req, res) => {
-    res.json({
-        drinks: DRINKS,
-    });
+app.get("/api/recipes", json(), async (req, res) => {
+    res.json(await getRecipes());
+});
+
+app.get("/api/recipes/:id", json(), async (req, res) => {
+    res.json(await getRecipe(parseInt(req.params.id)));
+});
+
+app.patch("/api/recipes/:id", json(), async (req, res) => {
+    res.json(await updateRecipe(parseInt(req.params.id), req.body));
+});
+
+app.post("/api/recipes", json(), async (req, res) => {
+    res.json(await createRecipe());
+});
+
+app.delete("/api/recipes/:id", json(), async (req, res) => {
+    await deleteRecipe(parseInt(req.params.id));
+    res.json({});
 });
 
 async function getOutputsWithState() {
@@ -151,13 +171,13 @@ function sendMessage(to: WebSocket, message: ClientMessage) {
 async function handleSocketMessage(sender: WebSocket, message: ServerMessage) {
     console.log("Received", message);
     switch (message.type) {
-        case "get-drinks": {
-            sendMessage(sender, {
-                type: "drinks",
-                drinks: DRINKS,
-            });
-            break;
-        }
+        // case "get-drinks": {
+        //     sendMessage(sender, {
+        //         type: "drinks",
+        //         drinks: DRINKS,
+        //     });
+        //     break;
+        // }
         // case "get-all-outputs": {
         //     await sendAllOutputsMessage(sender);
         //     break;

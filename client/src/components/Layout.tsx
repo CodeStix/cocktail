@@ -19,7 +19,10 @@ export function Layout(props: { children?: React.ReactNode }) {
             <Flex p="2" style={{ background: "var(--accent-3)", borderTop: "1px solid var(--accent-7)" }}>
                 <SegmentedControl.Root size="2" value={location.pathname}>
                     <SegmentedControl.Item value="/" onClick={() => navigate("/")}>
-                        Drinks
+                        Dispense
+                    </SegmentedControl.Item>
+                    <SegmentedControl.Item value="/recipe" onClick={() => navigate("/recipe")}>
+                        Recipes
                     </SegmentedControl.Item>
                     <SegmentedControl.Item value="/inventory" onClick={() => navigate("/inventory")}>
                         Inventory

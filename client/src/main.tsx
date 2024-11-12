@@ -3,11 +3,13 @@ import { createRoot } from "react-dom/client";
 import { Theme } from "@radix-ui/themes";
 import "./index.css";
 import "@radix-ui/themes/styles.css";
-import { FrontPage } from "./FrontPage.tsx";
+import { RecipesPage } from "./RecipesPage.tsx";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { DebugPage } from "./DebugPage.tsx";
 import { Layout } from "./components/Layout.tsx";
 import { InventoryPage } from "./InventoryPage.tsx";
+import { EditRecipePage } from "./EditRecipePage.tsx";
+import { EditRecipesPage } from "./EditRecipesPage.tsx";
 
 createRoot(document.getElementById("root")!).render(
     <StrictMode>
@@ -15,9 +17,11 @@ createRoot(document.getElementById("root")!).render(
             <BrowserRouter>
                 <Layout>
                     <Routes>
-                        <Route path="/" Component={FrontPage} />
+                        <Route path="/" Component={RecipesPage} />
                         <Route path="/debug" Component={DebugPage} />
                         <Route path="/inventory" Component={InventoryPage} />
+                        <Route path="/recipe" Component={EditRecipesPage} />
+                        <Route path="/recipe/:id" Component={EditRecipePage} />
                     </Routes>
                 </Layout>
             </BrowserRouter>

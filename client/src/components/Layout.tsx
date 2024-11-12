@@ -1,6 +1,6 @@
-import { Box, Button, Flex, SegmentedControl, Text } from "@radix-ui/themes";
+import { Box, Flex, SegmentedControl, Text } from "@radix-ui/themes";
 import { useEffect } from "react";
-import { Link, useHref, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import * as packageJson from "../../package.json";
 
 export function Layout(props: { children?: React.ReactNode }) {

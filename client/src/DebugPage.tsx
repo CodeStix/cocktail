@@ -1,8 +1,7 @@
-import { Box, Flex, Heading, Select, Switch, Table, Text, TextField } from "@radix-ui/themes";
-import { Layout } from "./components/Layout";
-import { ClientMessage, Output, ServerMessage } from "cocktail-shared";
-import { useEffect, useState } from "react";
-import useWebSocket, { ReadyState } from "react-use-websocket";
+import { Flex, Heading, Select, Switch, Table, TextField } from "@radix-ui/themes";
+import { ClientMessage, Output } from "cocktail-shared";
+import { useEffect } from "react";
+import useWebSocket from "react-use-websocket";
 import { SERVER_URL, SERVER_WS_URL, fetchJson, fetcher } from "./util";
 import useSWR from "swr";
 

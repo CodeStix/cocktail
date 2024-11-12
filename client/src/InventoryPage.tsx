@@ -1,18 +1,15 @@
 import { Box, Button, Card, Dialog, Flex, Heading, Select, Switch, Text, TextField } from "@radix-ui/themes";
-import { Layout } from "./components/Layout";
-import useWebSocket from "react-use-websocket";
-import { ClientMessage, Ingredient, Output } from "cocktail-shared";
-import { SERVER_URL, SERVER_WS_URL, fetchJson, fetcher } from "./util";
+import { Ingredient, Output } from "cocktail-shared";
+import { SERVER_URL, fetchJson, fetcher } from "./util";
 import { useEffect, useState } from "react";
 import useSWR from "swr";
-import { Link } from "react-router-dom";
 import { UploadButton } from "./components/UploadButton";
 
 function IngredientCard(props: { ingredient: Ingredient; onEdit: (ingredient: Ingredient) => void }) {
     const ingredient = props.ingredient;
     return (
         <Card
-            style={{ maxWidth: "300px" }}
+            style={{ width: "350px" }}
             asChild
             onClick={() => {
                 props.onEdit(ingredient);

@@ -1,9 +1,18 @@
-export type Drink = {
+export type Recipe = {
     id: number;
     name: string;
-    description?: string;
+    description: string;
+    imageUrl: string | null;
     themeColor: string;
-    imageUrl?: string;
+    totalAmount: number;
+    ingredients: RecipeIngredient[];
+};
+
+export type RecipeIngredient = {
+    ingredient: Omit<Ingredient, "output">;
+    ingredientId: number;
+    order: number;
+    amount: number;
 };
 
 export type Output = {
@@ -27,15 +36,10 @@ export type Ingredient = {
     inFridge: boolean;
 };
 
-export type ClientMessage =
-    | {
-          type: "drinks";
-          drinks: Drink[];
-      }
-    | {
-          type: "all-outputs";
-          outputs: Output[];
-      };
+export type ClientMessage = {
+    type: "all-outputs";
+    outputs: Output[];
+};
 
 // export type PatchIngredientRequest = {
 //     id: number;
@@ -60,4 +64,4 @@ export type ClientMessage =
 //     ingredient: Ingredient;
 // };
 
-export type ServerMessage = { type: "get-drinks" };
+export type ServerMessage = { type: "test" };

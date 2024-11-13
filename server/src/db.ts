@@ -65,7 +65,9 @@ export async function getIngredients(): Promise<Ingredient[]> {
             },
             outputId: true,
             remainingAmount: true,
+            originalAmount: true,
         },
+        orderBy: [{ inFridge: "desc" }, { remainingAmount: "desc" }],
     });
 
     return ingredients;
@@ -79,6 +81,7 @@ export async function updateIngredient(id: number, data: Partial<Ingredient>): P
         data: {
             imageUrl: data.imageUrl,
             remainingAmount: data.remainingAmount,
+            originalAmount: data.originalAmount,
             inFridge: data.inFridge,
             outputId: data.outputId,
             name: data.name,
@@ -89,9 +92,10 @@ export async function updateIngredient(id: number, data: Partial<Ingredient>): P
         name: ingr.name,
         inFridge: ingr.inFridge,
         remainingAmount: ingr.remainingAmount,
+        originalAmount: ingr.originalAmount,
         output: null,
         outputId: null,
-        imageUrl: null,
+        imageUrl: ingr.imageUrl,
     };
 }
 
@@ -116,9 +120,10 @@ export async function createIngredient(): Promise<Ingredient> {
         name: ingr.name,
         inFridge: ingr.inFridge,
         remainingAmount: ingr.remainingAmount,
+        originalAmount: ingr.originalAmount,
         output: null,
         outputId: null,
-        imageUrl: null,
+        imageUrl: ingr.imageUrl,
     };
 }
 
@@ -146,6 +151,7 @@ export async function getRecipe(id: number): Promise<Recipe | null> {
                             inFridge: true,
                             name: true,
                             remainingAmount: true,
+                            originalAmount: true,
                             outputId: true,
                         },
                     },
@@ -155,7 +161,7 @@ export async function getRecipe(id: number): Promise<Recipe | null> {
     });
 }
 
-export async function getRecipes(): Promise<Recipe[]> {
+export async function getRecipes(all: boolean): Promise<Recipe[]> {
     const rec = await database.recipe.findMany({
         select: {
             id: true,
@@ -176,12 +182,26 @@ export async function getRecipes(): Promise<Recipe[]> {
                             inFridge: true,
                             name: true,
                             remainingAmount: true,
+                            originalAmount: true,
                             outputId: true,
                         },
                     },
                 },
             },
         },
+        orderBy: [{ shown: "desc" }, { name: "asc" }],
+        where: all
+            ? undefined
+            : {
+                  shown: true,
+                  ingredients: {
+                      every: {
+                          ingredient: {
+                              inFridge: true,
+                          },
+                      },
+                  },
+              },
     });
     return rec;
 }
@@ -213,6 +233,7 @@ export async function createRecipe(): Promise<Recipe> {
                             inFridge: true,
                             name: true,
                             remainingAmount: true,
+                            originalAmount: true,
                             outputId: true,
                         },
                     },
@@ -307,6 +328,7 @@ export async function updateRecipe(id: number, data: Partial<Recipe>): Promise<R
                             inFridge: true,
                             name: true,
                             remainingAmount: true,
+                            originalAmount: true,
                             outputId: true,
                         },
                     },

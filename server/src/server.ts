@@ -73,7 +73,7 @@ app.use((req, res, next) => {
 });
 
 app.get("/api/recipes", json(), async (req, res) => {
-    res.json(await getRecipes());
+    res.json(await getRecipes(req.query.all === "1"));
 });
 
 app.get("/api/recipes/:id", json(), async (req, res) => {

@@ -43,6 +43,7 @@ model Ingredient {
   outputId        Int?
   usedInRecipe    RecipeIngredient[]
   remainingAmount Float
+  originalAmount  Float              @default(1000)
   inFridge        Boolean
 }
 

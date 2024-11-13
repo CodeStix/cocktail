@@ -1,4 +1,4 @@
-import { Box, Button, Card, Flex, Heading, IconButton, Select, Text, TextArea, TextField } from "@radix-ui/themes";
+import { Box, Button, Card, Flex, Heading, IconButton, Select, Switch, Text, TextArea, TextField } from "@radix-ui/themes";
 import { Ingredient, Recipe, RecipeIngredient } from "cocktail-shared";
 import { useEffect, useState } from "react";
 import { unstable_usePrompt, useParams } from "react-router-dom";
@@ -55,7 +55,7 @@ export function EditIngredientForm(props: { ingredient: RecipeIngredient; onChan
                     <TextField.Slot side="right">ml</TextField.Slot>
                 </TextField.Root>
                 <Flex gap="1" mt="1">
-                    {[0, 10, 20, 50, 75, 100, 125, 150, 200, 250, 300, 400].map((e) => (
+                    {[10, 20, 50, 75, 100, 125, 150, 200, 250, 300, 400].map((e) => (
                         <Button
                             size="1"
                             onClick={() =>
@@ -135,6 +135,13 @@ export function EditRecipePage() {
                             Description
                         </Text>
                         <TextArea value={recipe.description} onChange={(ev) => setRecipe({ ...recipe, description: ev.target.value })} />
+                    </label>
+
+                    <label>
+                        <Text as="div" size="2" mb="1" weight="bold">
+                            Shown
+                        </Text>
+                        <Switch checked={recipe.shown} onCheckedChange={(checked) => setRecipe({ ...recipe, shown: checked })} />
                     </label>
 
                     <div>

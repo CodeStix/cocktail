@@ -1,32 +1,41 @@
-import { Flex, Text, Button, Box, Card } from "@radix-ui/themes";
-import { ClientMessage, Drink, ServerMessage } from "cocktail-shared";
+import { Flex, Text, Button, Box, Card, Heading } from "@radix-ui/themes";
+import { ClientMessage, Recipe, ServerMessage } from "cocktail-shared";
 import { SERVER_URL, SERVER_WS_URL, fetcher } from "./util";
 import useSWR from "swr";
 import { RecipeCard } from "./components/DrinkCard";
 
 export function RecipesPage() {
-    const { data: recipes } = useSWR<Drink[]>(SERVER_URL + "/api/recipes", fetcher);
+    const { data: recipes } = useSWR<Recipe[]>(SERVER_URL + "/api/recipes", fetcher);
 
     return (
-        <Flex style={{ alignContent: "start" }} display="flex" flexGrow="1" p="4" wrap="wrap" gap="3">
-            {recipes === null && <Text style={{ fontWeight: "bold" }}>Loading drinks...</Text>}
-            {recipes?.map((drink) => (
-                <RecipeCard
-                    recipe={drink}
-                    key={drink.id}
-                    onClick={() => {
-                        console.log("mix", drink);
-                    }}>
-                    <Button
-                        onClick={() => {
-                            console.log("mix", drink);
-                        }}
-                        tabIndex={-1}
-                        color="blue">
-                        Mix this!
-                    </Button>
-                </RecipeCard>
-            ))}
+        <Flex direction="column" p="4" gap="3">
+            <Flex>
+                <Heading>Drinks</Heading>
+                <Box flexGrow="1"></Box>
+                {/* <Button onClick={() => newRecipe()}>New</Button> */}
+            </Flex>
+            <Flex style={{ alignContent: "start" }} display="flex" flexGrow="1" wrap="wrap" gap="3">
+                {recipes === null && <Text style={{ fontWeight: "bold" }}>Loading drinks...</Text>}
+                {recipes
+                    ?.filter((e) => e.shown)
+                    .map((drink) => (
+                        <RecipeCard
+                            recipe={drink}
+                            key={drink.id}
+                            onClick={() => {
+                                console.log("mix", drink);
+                            }}>
+                            <Button
+                                onClick={() => {
+                                    console.log("mix", drink);
+                                }}
+                                tabIndex={-1}
+                                color="blue">
+                                Mix this!
+                            </Button>
+                        </RecipeCard>
+                    ))}
+            </Flex>
         </Flex>
     );
 }

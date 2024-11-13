@@ -153,8 +153,9 @@ export function InventoryPage() {
                                             if (!isNaN(num)) {
                                                 setEditing({ ...editing, remainingAmount: num });
                                             }
-                                        }}
-                                    />
+                                        }}>
+                                        <TextField.Slot side="right">ml</TextField.Slot>
+                                    </TextField.Root>
                                     <Flex gap="1" mt="1">
                                         {[0, 100, 250, 500, 750, 1000, 1500].map((e) => (
                                             <Button

@@ -9,8 +9,8 @@ export type Recipe = {
 };
 
 export type RecipeIngredient = {
-    ingredient: Omit<Ingredient, "output">;
-    ingredientId: number;
+    ingredient: Omit<Ingredient, "output"> | null;
+    ingredientId: number | null;
     order: number;
     amount: number;
 };

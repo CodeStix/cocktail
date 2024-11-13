@@ -1,9 +1,9 @@
 import { Box, Card, Flex, Text } from "@radix-ui/themes";
-import { Drink } from "cocktail-shared";
+import { Recipe } from "cocktail-shared";
 import { SERVER_URL } from "../util";
 
-export function DrinkCard(props: { drink: Drink; children?: React.ReactNode; onClick: () => void }) {
-    const drink = props.drink;
+export function RecipeCard(props: { recipe: Recipe; children?: React.ReactNode; onClick?: () => void }) {
+    const recipe = props.recipe;
     return (
         <Card style={{ maxWidth: "300px" }} asChild>
             <button onClick={props.onClick}>
@@ -13,15 +13,15 @@ export function DrinkCard(props: { drink: Drink; children?: React.ReactNode; onC
                         width="100px"
                         height="100px"
                         style={{ background: "var(--accent-5)", borderRadius: "var(--radius-1)", overflow: "hidden" }}>
-                        {drink.imageUrl && <img style={{ objectFit: "cover" }} width="100%" height="100%" src={SERVER_URL + drink.imageUrl} />}
+                        {recipe.imageUrl && <img style={{ objectFit: "cover" }} width="100%" height="100%" src={SERVER_URL + recipe.imageUrl} />}
                     </Box>
                     <Flex flexGrow="1" direction="column">
                         <Text as="div" size="2" weight="bold">
-                            {drink.name}
+                            {recipe.name}
                         </Text>
-                        {drink.description && (
+                        {recipe.description && (
                             <Text as="div" color="gray" size="2" mb="1">
-                                {drink.description}
+                                {recipe.description}
                             </Text>
                         )}
                         {props.children && (

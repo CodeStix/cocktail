@@ -33,6 +33,7 @@ export type Ingredient = {
     } | null;
     outputId: number | null;
     remainingAmount: number;
+    originalAmount: number;
     inFridge: boolean;
 };
 

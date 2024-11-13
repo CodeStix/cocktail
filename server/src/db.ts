@@ -133,7 +133,7 @@ export async function getRecipe(id: number): Promise<Recipe | null> {
             imageUrl: true,
             name: true,
             themeColor: true,
-            totalAmount: true,
+            shown: true,
             ingredients: {
                 select: {
                     amount: true,
@@ -163,7 +163,7 @@ export async function getRecipes(): Promise<Recipe[]> {
             imageUrl: true,
             name: true,
             themeColor: true,
-            totalAmount: true,
+            shown: true,
             ingredients: {
                 select: {
                     amount: true,
@@ -192,7 +192,7 @@ export async function createRecipe(): Promise<Recipe> {
             name: "",
             description: "",
             themeColor: "#ff0000",
-            totalAmount: 300,
+            shown: true,
         },
         select: {
             id: true,
@@ -200,7 +200,7 @@ export async function createRecipe(): Promise<Recipe> {
             imageUrl: true,
             name: true,
             themeColor: true,
-            totalAmount: true,
+            shown: true,
             ingredients: {
                 select: {
                     amount: true,
@@ -224,6 +224,59 @@ export async function createRecipe(): Promise<Recipe> {
 }
 
 export async function updateRecipe(id: number, data: Partial<Recipe>): Promise<Recipe> {
+    // const toCreate = (data.ingredients ?? []).
+
+    if (data.ingredients) {
+        const dataIngr = data.ingredients.filter((e) => e.ingredientId !== null);
+
+        const existingIngr = await database.recipeIngredient.findMany({
+            where: {
+                recipeId: id,
+            },
+        });
+
+        const toRemove = new Set(existingIngr.map((e) => e.ingredientId));
+        (dataIngr ?? []).forEach((e) => toRemove.delete(e.ingredientId!));
+        for (const ingrId of toRemove) {
+            await database.recipeIngredient.delete({
+                where: {
+                    recipeId_ingredientId: {
+                        ingredientId: ingrId,
+                        recipeId: id,
+                    },
+                },
+            });
+        }
+
+        const toAdd = new Map(dataIngr.map((e) => [e.ingredientId, e]));
+        existingIngr.forEach((e) => toAdd.delete(e.ingredientId));
+        for (const [ingrId, ingr] of toAdd) {
+            await database.recipeIngredient.create({
+                data: {
+                    ingredientId: ingrId!,
+                    recipeId: id,
+                    amount: ingr.amount,
+                    order: ingr.order,
+                },
+            });
+        }
+
+        for (const ingr of dataIngr) {
+            await database.recipeIngredient.update({
+                where: {
+                    recipeId_ingredientId: {
+                        ingredientId: ingr.ingredientId!,
+                        recipeId: id,
+                    },
+                },
+                data: {
+                    amount: ingr.amount,
+                    order: ingr.order,
+                },
+            });
+        }
+    }
+
     return await database.recipe.update({
         where: {
             id: id,
@@ -233,19 +286,7 @@ export async function updateRecipe(id: number, data: Partial<Recipe>): Promise<R
             name: data.name,
             imageUrl: data.imageUrl,
             themeColor: data.themeColor,
-            totalAmount: data.totalAmount,
-            ingredients: data.ingredients
-                ? {
-                      set: data.ingredients.map((ingr) => ({
-                          recipeId_ingredientId: {
-                              ingredientId: ingr.ingredientId,
-                              recipeId: id,
-                          },
-                          amount: ingr.amount,
-                          order: ingr.order,
-                      })),
-                  }
-                : undefined,
+            shown: data.shown,
         },
         select: {
             id: true,
@@ -253,7 +294,7 @@ export async function updateRecipe(id: number, data: Partial<Recipe>): Promise<R
             imageUrl: true,
             name: true,
             themeColor: true,
-            totalAmount: true,
+            shown: true,
             ingredients: {
                 select: {
                     amount: true,

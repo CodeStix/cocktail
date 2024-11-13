@@ -4,7 +4,7 @@ export type Recipe = {
     description: string;
     imageUrl: string | null;
     themeColor: string;
-    totalAmount: number;
+    shown: boolean;
     ingredients: RecipeIngredient[];
 };
 

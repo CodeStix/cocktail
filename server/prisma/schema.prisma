@@ -19,7 +19,7 @@ model Recipe {
   description String
   imageUrl    String?
   themeColor  String
-  totalAmount Float
+  shown       Boolean            @default(true)
   ingredients RecipeIngredient[]
 }
 

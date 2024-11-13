@@ -6,7 +6,7 @@ import { RecipeCard } from "./components/DrinkCard";
 import { useNavigate } from "react-router-dom";
 
 export function EditRecipesPage() {
-    const { data: recipes } = useSWR<Recipe[]>(SERVER_URL + "/api/recipes", fetcher);
+    const { data: recipes } = useSWR<Recipe[]>(SERVER_URL + "/api/recipes?all=1", fetcher);
     const navigate = useNavigate();
 
     async function newRecipe() {

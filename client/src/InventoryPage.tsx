@@ -1,4 +1,4 @@
-import { Box, Button, Card, Dialog, Flex, Heading, Select, Switch, Text, TextField } from "@radix-ui/themes";
+import { Badge, Box, Button, Card, Dialog, Flex, Heading, IconButton, Progress, Select, Separator, Switch, Text, TextField } from "@radix-ui/themes";
 import { Ingredient, Output } from "cocktail-shared";
 import { SERVER_URL, fetchJson, fetcher } from "./util";
 import { useEffect, useState } from "react";
@@ -9,7 +9,7 @@ function IngredientCard(props: { ingredient: Ingredient; onEdit: (ingredient: In
     const ingredient = props.ingredient;
     return (
         <Card
-            style={{ width: "350px" }}
+            // style={{ width: "500px" }}
             asChild
             onClick={() => {
                 props.onEdit(ingredient);
@@ -26,21 +26,57 @@ function IngredientCard(props: { ingredient: Ingredient; onEdit: (ingredient: In
                         )}
                     </Box>
                     <Flex flexGrow="1" direction="column">
-                        <Text as="p" size="4" weight="bold">
-                            {ingredient.name}
-                        </Text>
+                        <Flex align="center" gap="2">
+                            <Text as="p" size="4" weight="bold">
+                                {ingredient.name}
+                            </Text>
+                            {ingredient.inFridge ? (
+                                ingredient.remainingAmount < ingredient.originalAmount / 8 ? (
+                                    <Badge color="amber">Almost empty</Badge>
+                                ) : (
+                                    <Badge color="green">In fridge</Badge>
+                                )
+                            ) : (
+                                <Badge color="red">Unavailable</Badge>
+                            )}
+                        </Flex>
 
-                        <Text as="p" size="2">
-                            {ingredient.remainingAmount}ml remaining
-                        </Text>
+                        {ingredient.inFridge ? (
+                            <>
+                                <Box>
+                                    <Progress color="blue" value={(ingredient.remainingAmount / ingredient.originalAmount) * 100} size="2" />
+                                </Box>
 
-                        <Text as="p" size="2" style={{ opacity: 0.5 }}>
-                            Connected to {ingredient.output?.name ?? "(nothing)"}
-                        </Text>
+                                <Text as="p" size="2">
+                                    {ingredient.remainingAmount}/{ingredient.originalAmount}ml remaining
+                                </Text>
 
-                        <Button onClick={() => props.onEdit(ingredient)} tabIndex={-1} mt="auto" style={{ alignSelf: "end" }} color="blue" asChild>
-                            Edit
-                        </Button>
+                                <Text as="p" size="2" style={{ opacity: 0.5 }}>
+                                    Connected to {ingredient.output?.name ?? "(nothing)"}
+                                </Text>
+                            </>
+                        ) : (
+                            <>
+                                <Text as="p" size="2" style={{ opacity: 0.5 }}>
+                                    Should connect to {ingredient.output?.name ?? "(nothing)"}
+                                </Text>
+                            </>
+                        )}
+
+                        <Flex style={{ alignSelf: "end" }} mt="auto" gap="2">
+                            {/* <Button
+                                variant="ghost"
+                                onClick={() => props.onEdit(ingredient)}
+                                tabIndex={-1}
+                                mt="auto"
+                                style={{ alignSelf: "end", fontWeight: "bold" }}
+                                color="blue">
+                                Refill to {ingredient.originalAmount}ml
+                            </Button> */}
+                            <Button onClick={() => props.onEdit(ingredient)} tabIndex={-1} mt="auto" color="blue">
+                                Edit
+                            </Button>
+                        </Flex>
                     </Flex>
                 </Flex>
             </button>
@@ -54,6 +90,7 @@ export function InventoryPage() {
     const [edit, setEdit] = useState(false);
     const [editing, setEditing] = useState<Ingredient | null>(null);
     const [remainingAmountStr, setRemainingAmountStr] = useState("");
+    const [originalAmountStr, setOriginalAmountStr] = useState("");
 
     async function updateIngredient() {
         await fetchJson("/api/ingredients/" + editing!.id, "PATCH", editing);
@@ -70,6 +107,7 @@ export function InventoryPage() {
     useEffect(() => {
         if (editing) {
             setRemainingAmountStr(String(editing.remainingAmount));
+            setOriginalAmountStr(String(editing.originalAmount));
         }
     }, [editing]);
 
@@ -99,7 +137,7 @@ export function InventoryPage() {
                 <Box flexGrow="1"></Box>
                 <Button onClick={() => newIngredient()}>New</Button>
             </Flex>
-            <Flex wrap="wrap" gap="3">
+            <Flex wrap="wrap" gap="3" direction="column">
                 {ingredients?.map((e) => (
                     <IngredientCard
                         ingredient={e}
@@ -119,7 +157,17 @@ export function InventoryPage() {
                         <Dialog.Content maxWidth="450px">
                             <Dialog.Title>Edit {editing?.name}</Dialog.Title>
 
-                            <Flex direction="column" gap="3">
+                            <Flex direction="column" gap="4">
+                                <Button
+                                    onClick={() => setEditing({ ...editing, remainingAmount: editing.originalAmount })}
+                                    tabIndex={-1}
+                                    mt="auto"
+                                    // style={{ alignSelf: "end", fontWeight: "bold" }}
+                                    color="blue">
+                                    Refill to {editing.originalAmount}ml
+                                </Button>
+                                <Separator style={{ width: "100%" }} />
+
                                 <div>
                                     <Text as="label" size="2" mb="1" weight="bold">
                                         Image
@@ -139,24 +187,97 @@ export function InventoryPage() {
                                     </Text>
                                     <TextField.Root value={editing.name} onChange={(ev) => setEditing({ ...editing, name: ev.target.value })} />
                                 </label>
-                                <label>
+
+                                <div>
+                                    <Text as="div" size="2" mb="1" weight="bold">
+                                        Original amount (ml)
+                                    </Text>
+                                    <Flex align="center" gap="1">
+                                        <Button
+                                            variant="soft"
+                                            color="red"
+                                            onClick={() => setEditing({ ...editing, originalAmount: Math.max(0, editing.originalAmount - 100) })}>
+                                            - 100
+                                        </Button>
+                                        <Button
+                                            variant="soft"
+                                            color="red"
+                                            onClick={() => setEditing({ ...editing, originalAmount: Math.max(0, editing.originalAmount - 10) })}>
+                                            - 10
+                                        </Button>
+                                        <TextField.Root
+                                            value={originalAmountStr}
+                                            onChange={(ev) => {
+                                                const str = ev.target.value;
+                                                setOriginalAmountStr(str);
+
+                                                const num = parseFloat(str);
+                                                if (!isNaN(num)) {
+                                                    setEditing({ ...editing, originalAmount: num });
+                                                }
+                                            }}>
+                                            <TextField.Slot side="right">ml</TextField.Slot>
+                                        </TextField.Root>
+                                        <Button
+                                            variant="soft"
+                                            color="green"
+                                            onClick={() => setEditing({ ...editing, originalAmount: editing.originalAmount + 10 })}>
+                                            + 10
+                                        </Button>
+                                        <Button
+                                            variant="soft"
+                                            color="green"
+                                            onClick={() => setEditing({ ...editing, originalAmount: editing.originalAmount + 100 })}>
+                                            + 100
+                                        </Button>
+                                    </Flex>
+                                </div>
+
+                                <div>
                                     <Text as="div" size="2" mb="1" weight="bold">
                                         Remaining amount (ml)
                                     </Text>
-                                    <TextField.Root
-                                        value={remainingAmountStr}
-                                        onChange={(ev) => {
-                                            const str = ev.target.value;
-                                            setRemainingAmountStr(str);
+                                    <Flex align="center" gap="1">
+                                        <Button
+                                            variant="soft"
+                                            color="red"
+                                            onClick={() => setEditing({ ...editing, remainingAmount: Math.max(0, editing.remainingAmount - 100) })}>
+                                            - 100
+                                        </Button>
+                                        <Button
+                                            variant="soft"
+                                            color="red"
+                                            onClick={() => setEditing({ ...editing, remainingAmount: Math.max(0, editing.remainingAmount - 10) })}>
+                                            - 10
+                                        </Button>
+                                        <TextField.Root
+                                            value={remainingAmountStr}
+                                            onChange={(ev) => {
+                                                const str = ev.target.value;
+                                                setRemainingAmountStr(str);
 
-                                            const num = parseFloat(str);
-                                            if (!isNaN(num)) {
-                                                setEditing({ ...editing, remainingAmount: num });
-                                            }
-                                        }}>
-                                        <TextField.Slot side="right">ml</TextField.Slot>
-                                    </TextField.Root>
-                                    <Flex gap="1" mt="1">
+                                                const num = parseFloat(str);
+                                                if (!isNaN(num)) {
+                                                    setEditing({ ...editing, remainingAmount: num });
+                                                }
+                                            }}>
+                                            <TextField.Slot side="right">ml</TextField.Slot>
+                                        </TextField.Root>
+                                        <Button
+                                            variant="soft"
+                                            color="green"
+                                            onClick={() => setEditing({ ...editing, remainingAmount: editing.remainingAmount + 10 })}>
+                                            + 10
+                                        </Button>
+                                        <Button
+                                            variant="soft"
+                                            color="green"
+                                            onClick={() => setEditing({ ...editing, remainingAmount: editing.remainingAmount + 100 })}>
+                                            + 100
+                                        </Button>
+                                    </Flex>
+                                </div>
+                                {/* <Flex gap="1" mt="1">
                                         {[0, 100, 250, 500, 750, 1000, 1500].map((e) => (
                                             <Button
                                                 size="1"
@@ -170,8 +291,7 @@ export function InventoryPage() {
                                                 {e}ml
                                             </Button>
                                         ))}
-                                    </Flex>
-                                </label>
+                                    </Flex> */}
                                 <label>
                                     <Text as="div" size="2" mb="1" weight="bold">
                                         In fridge?

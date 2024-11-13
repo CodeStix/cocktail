@@ -16,25 +16,23 @@ export function RecipesPage() {
             </Flex>
             <Flex style={{ alignContent: "start" }} display="flex" flexGrow="1" wrap="wrap" gap="3">
                 {recipes === null && <Text style={{ fontWeight: "bold" }}>Loading drinks...</Text>}
-                {recipes
-                    ?.filter((e) => e.shown)
-                    .map((drink) => (
-                        <RecipeCard
-                            recipe={drink}
-                            key={drink.id}
+                {recipes?.map((drink) => (
+                    <RecipeCard
+                        recipe={drink}
+                        key={drink.id}
+                        onClick={() => {
+                            console.log("mix", drink);
+                        }}>
+                        <Button
                             onClick={() => {
                                 console.log("mix", drink);
-                            }}>
-                            <Button
-                                onClick={() => {
-                                    console.log("mix", drink);
-                                }}
-                                tabIndex={-1}
-                                color="blue">
-                                Mix this!
-                            </Button>
-                        </RecipeCard>
-                    ))}
+                            }}
+                            tabIndex={-1}
+                            color="blue">
+                            Mix this!
+                        </Button>
+                    </RecipeCard>
+                ))}
             </Flex>
         </Flex>
     );

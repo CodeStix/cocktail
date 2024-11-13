@@ -1,4 +1,4 @@
-import { Box, Button, Card, Flex, Heading, IconButton, Select, Switch, Text, TextArea, TextField } from "@radix-ui/themes";
+import { Badge, Box, Button, Card, Flex, Heading, IconButton, Select, Switch, Text, TextArea, TextField } from "@radix-ui/themes";
 import { Ingredient, Recipe, RecipeIngredient } from "cocktail-shared";
 import { useEffect, useState } from "react";
 import { unstable_usePrompt, useParams } from "react-router-dom";
@@ -30,8 +30,8 @@ export function EditIngredientForm(props: { ingredient: RecipeIngredient; onChan
                     <Select.Content>
                         {/* <Select.Item value="">Disable output</Select.Item> */}
                         {ingredients?.map((ing) => (
-                            <Select.Item key={ing.id} value={String(ing.id)}>
-                                {ing.name} ({ing.remainingAmount} ml)
+                            <Select.Item key={ing.id} value={String(ing.id)} style={{ textDecoration: ing.inFridge ? undefined : "line-through" }}>
+                                {ing.name} {ing.inFridge ? <Badge color="green">In fridge</Badge> : <Badge color="red">Unavailable</Badge>}
                             </Select.Item>
                         ))}
                     </Select.Content>
@@ -57,6 +57,8 @@ export function EditIngredientForm(props: { ingredient: RecipeIngredient; onChan
                 <Flex gap="1" mt="1">
                     {[10, 20, 50, 75, 100, 125, 150, 200, 250, 300, 400].map((e) => (
                         <Button
+                            color="blue"
+                            variant="soft"
                             size="1"
                             onClick={() =>
                                 props.onChange({
@@ -71,22 +73,32 @@ export function EditIngredientForm(props: { ingredient: RecipeIngredient; onChan
                 </Flex>
             </label>
 
-            <label>
+            <div>
                 <Text as="div" size="2" mb="1" weight="bold">
                     Order
                 </Text>
                 <Flex gap="3" align="center">
-                    <IconButton variant="soft" disabled={ingr.order <= 1} onClick={() => props.onChange({ ...ingr, order: ingr.order - 1 })}>
+                    <IconButton
+                        style={{ fontWeight: "bold" }}
+                        color="red"
+                        variant="soft"
+                        disabled={ingr.order <= 1}
+                        onClick={() => props.onChange({ ...ingr, order: ingr.order - 1 })}>
                         -
                     </IconButton>
                     <Text weight="medium" size="5">
                         {ingr.order}
                     </Text>
-                    <IconButton variant="soft" disabled={ingr.order >= 100} onClick={() => props.onChange({ ...ingr, order: ingr.order + 1 })}>
+                    <IconButton
+                        style={{ fontWeight: "bold" }}
+                        color="green"
+                        variant="soft"
+                        disabled={ingr.order >= 100}
+                        onClick={() => props.onChange({ ...ingr, order: ingr.order + 1 })}>
                         +
                     </IconButton>
                 </Flex>
-            </label>
+            </div>
         </Flex>
     );
 }

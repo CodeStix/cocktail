@@ -13,7 +13,7 @@ import { EditRecipesPage } from "./EditRecipesPage.tsx";
 
 createRoot(document.getElementById("root")!).render(
     <StrictMode>
-        <Theme accentColor="gray" radius="large" appearance="dark" scaling="110%">
+        <Theme accentColor="gray" radius="medium" appearance="dark" scaling="110%">
             <BrowserRouter>
                 <Layout>
                     <Routes>

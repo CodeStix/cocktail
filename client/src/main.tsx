@@ -10,6 +10,7 @@ import { Layout } from "./components/Layout.tsx";
 import { InventoryPage } from "./InventoryPage.tsx";
 import { EditRecipePage } from "./EditRecipePage.tsx";
 import { EditRecipesPage } from "./EditRecipesPage.tsx";
+import { EditIngredientPage } from "./EditIngredient.tsx";
 
 createRoot(document.getElementById("root")!).render(
     <StrictMode>
@@ -22,6 +23,7 @@ createRoot(document.getElementById("root")!).render(
                         <Route path="/inventory" Component={InventoryPage} />
                         <Route path="/recipe" Component={EditRecipesPage} />
                         <Route path="/recipe/:id" Component={EditRecipePage} />
+                        <Route path="/ingredients/:id" Component={EditIngredientPage} />
                     </Routes>
                 </Layout>
             </BrowserRouter>

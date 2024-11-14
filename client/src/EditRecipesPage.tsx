@@ -1,4 +1,4 @@
-import { Flex, Button, Text, Heading, Box, IconButton } from "@radix-ui/themes";
+import { Flex, Button, Text, Heading, Box, IconButton, Skeleton } from "@radix-ui/themes";
 import { Recipe } from "cocktail-shared";
 import useSWR from "swr";
 import { SERVER_URL, fetchJson, fetcher } from "./util";
@@ -22,13 +22,12 @@ export function EditRecipesPage() {
             <Flex>
                 <Heading>Recipes</Heading>
                 <Box flexGrow="1"></Box>
-                <Button color="green" onClick={() => newRecipe()}>
+                <Button disabled={!recipes} color="green" onClick={() => newRecipe()}>
                     <FontAwesomeIcon icon={faAdd} />
                     New
                 </Button>
             </Flex>
             <Flex style={{ alignContent: "start" }} display="flex" flexGrow="1" wrap="wrap" gap="3">
-                {recipes === null && <Text style={{ fontWeight: "bold" }}>Loading drinks...</Text>}
                 {recipes?.map((recipe) => (
                     <RecipeCard recipe={recipe} key={recipe.id} onClick={() => navigate("/recipe/" + recipe.id)}>
                         <Button
@@ -40,7 +39,14 @@ export function EditRecipesPage() {
                             <FontAwesomeIcon icon={faEdit} /> Edit
                         </Button>
                     </RecipeCard>
-                ))}
+                )) ?? (
+                    <>
+                        <Skeleton width="400px" height="126px" />
+                        <Skeleton width="400px" height="126px" />
+                        <Skeleton width="400px" height="126px" />
+                        <Skeleton width="400px" height="126px" />
+                    </>
+                )}
             </Flex>
         </Flex>
     );

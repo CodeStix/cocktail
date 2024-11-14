@@ -12,6 +12,7 @@ import {
     Progress,
     Select,
     Separator,
+    Skeleton,
     Switch,
     Text,
     TextField,
@@ -183,7 +184,7 @@ export function InventoryPage() {
             <Flex>
                 <Heading>Ingredients</Heading>
                 <Box flexGrow="1"></Box>
-                <Button color="green" onClick={() => newIngredient()}>
+                <Button disabled={!ingredients} color="green" onClick={() => newIngredient()}>
                     <FontAwesomeIcon icon={faAdd} /> New
                 </Button>
             </Flex>
@@ -196,7 +197,13 @@ export function InventoryPage() {
                             setShowEditDialog(true);
                         }}
                     />
-                ))}
+                )) ?? (
+                    <>
+                        <Skeleton height="162px" />
+                        <Skeleton height="162px" />
+                        <Skeleton height="162px" />
+                    </>
+                )}
 
                 <Dialog.Root open={showEditDialog}>
                     {/* <Dialog.Trigger>
@@ -376,7 +383,7 @@ export function InventoryPage() {
                                         required={false}
                                         value={editing.outputId === null ? "" : String(editing.outputId)}
                                         onValueChange={(value) => setEditing({ ...editing, outputId: value === "" ? null : parseInt(value) })}>
-                                        <Select.Trigger placeholder="select output" />
+                                        <Select.Trigger placeholder="select output" style={{ minWidth: "300px" }} />
                                         <Select.Content>
                                             {/* <Select.Item value="">Disable output</Select.Item> */}
                                             {outputs?.map((output) => (

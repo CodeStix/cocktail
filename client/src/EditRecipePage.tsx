@@ -9,6 +9,7 @@ import {
     IconButton,
     Select,
     Separator,
+    Skeleton,
     Switch,
     Text,
     TextArea,
@@ -44,7 +45,7 @@ export function EditIngredientForm(props: { ingredient: RecipeIngredient; onChan
                     required={false}
                     value={ingr.ingredientId === null ? "" : String(ingr.ingredientId)}
                     onValueChange={(value) => props.onChange({ ...ingr, ingredientId: value === "" ? null : parseInt(value) })}>
-                    <Select.Trigger placeholder="select output" />
+                    <Select.Trigger style={{ minWidth: "300px" }} placeholder="select output" />
                     <Select.Content>
                         {/* <Select.Item value="">Disable output</Select.Item> */}
                         {ingredients?.map((ing) => (
@@ -154,6 +155,7 @@ export function EditRecipePage() {
             const updated: Recipe = await fetchJson("/api/recipes/" + id, "PATCH", recipe);
             setRecipe(updated);
             setSavedRecipe(updated);
+            navigate("/recipe");
         } finally {
             setSubmitting(false);
         }
@@ -161,16 +163,15 @@ export function EditRecipePage() {
 
     return (
         <Flex direction="column" gap="3" p="4">
-            {recipe && (
+            <Flex gap="3">
+                <Heading>Edit recipe</Heading>
+                <Box flexGrow="1"></Box>
+                <Button loading={submitting} disabled={!recipe || submitting || recipe === savedRecipe} onClick={() => updateRecipe()} color="green">
+                    <FontAwesomeIcon icon={faSave} /> Save
+                </Button>
+            </Flex>
+            {recipe ? (
                 <>
-                    <Flex gap="3">
-                        <Heading>Edit recipe</Heading>
-                        <Box flexGrow="1"></Box>
-                        <Button loading={submitting} disabled={submitting || recipe === savedRecipe} onClick={() => updateRecipe()} color="green">
-                            <FontAwesomeIcon icon={faSave} /> Save
-                        </Button>
-                    </Flex>
-
                     <RecipeCard recipe={recipe} />
 
                     <label>
@@ -291,6 +292,12 @@ export function EditRecipePage() {
                             </AlertDialog.Content>
                         </AlertDialog.Root>
                     </Box>
+                </>
+            ) : (
+                <>
+                    <Skeleton width="400px" height="126px"></Skeleton>
+                    <Skeleton width="100%" height="61px"></Skeleton>
+                    <Skeleton width="100%" height="97px"></Skeleton>
                 </>
             )}
         </Flex>

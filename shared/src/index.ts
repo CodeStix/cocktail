@@ -35,6 +35,12 @@ export type Ingredient = {
     remainingAmount: number;
     originalAmount: number;
     inFridge: boolean;
+    usedInRecipe?: {
+        recipe: {
+            name: string;
+            id: number;
+        };
+    }[];
 };
 
 export type ClientMessage = {

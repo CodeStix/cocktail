@@ -63,6 +63,16 @@ export async function getIngredients(): Promise<Ingredient[]> {
                     name: true,
                 },
             },
+            usedInRecipe: {
+                select: {
+                    recipe: {
+                        select: {
+                            id: true,
+                            name: true,
+                        },
+                    },
+                },
+            },
             outputId: true,
             remainingAmount: true,
             originalAmount: true,
@@ -100,11 +110,17 @@ export async function updateIngredient(id: number, data: Partial<Ingredient>): P
 }
 
 export async function deleteIngredient(id: number) {
-    await database.ingredient.delete({
-        where: {
-            id: id,
-        },
-    });
+    try {
+        await database.ingredient.delete({
+            where: {
+                id: id,
+            },
+        });
+        return true;
+    } catch (ex) {
+        console.error("Could not delete ingredient", ex);
+        return false;
+    }
 }
 
 export async function createIngredient(): Promise<Ingredient> {

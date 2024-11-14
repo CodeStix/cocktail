@@ -24,8 +24,8 @@ model Recipe {
 }
 
 model RecipeIngredient {
-  recipe       Recipe     @relation(fields: [recipeId], references: [id])
-  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+  recipe       Recipe     @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Restrict)
   recipeId     Int
   ingredientId Int
 
@@ -39,7 +39,7 @@ model Ingredient {
   id              Int                @id @default(autoincrement())
   name            String
   imageUrl        String?
-  output          Output?            @relation(fields: [outputId], references: [id])
+  output          Output?            @relation(fields: [outputId], references: [id], onDelete: SetNull)
   outputId        Int?
   usedInRecipe    RecipeIngredient[]
   remainingAmount Float

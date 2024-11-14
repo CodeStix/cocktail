@@ -129,8 +129,7 @@ app.patch("/api/ingredients/:id", json(), async (req, res) => {
 });
 
 app.delete("/api/ingredients/:id", json(), async (req, res) => {
-    await deleteIngredient(parseInt(req.params.id));
-    res.json({});
+    res.json({ deleted: await deleteIngredient(parseInt(req.params.id)) });
 });
 
 app.post("/api/upload", upload.single("file"), (req, res) => {

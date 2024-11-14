@@ -30,7 +30,7 @@ export function DebugPage() {
     return (
         <Flex p="4" gap="4" direction="column" align="stretch">
             {/* <Flex direction="column"> */}
-            <Heading>Relay 12v</Heading>
+            <Heading>Hardware outputs</Heading>
             <Table.Root layout="fixed" size="1" style={{ alignItems: "center", width: "100%" }}>
                 <Table.Header>
                     <Table.Row>

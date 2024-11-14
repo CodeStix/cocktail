@@ -1,6 +1,8 @@
 import { Button } from "@radix-ui/themes";
 import { useRef, useState } from "react";
 import { SERVER_URL } from "../util";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faFileImage } from "@fortawesome/free-regular-svg-icons";
 
 export function UploadButton(props: { onUploaded: (url: string) => void }) {
     const inputRef = useRef<HTMLInputElement>(null);
@@ -46,7 +48,7 @@ export function UploadButton(props: { onUploaded: (url: string) => void }) {
                 }}
             />
             <Button loading={loading} onClick={() => inputRef.current?.click()}>
-                {fileName || "Select file"}
+                <FontAwesomeIcon icon={faFileImage} /> {fileName || "Select file"}
             </Button>
         </>
     );

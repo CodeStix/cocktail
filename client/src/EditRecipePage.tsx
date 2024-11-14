@@ -1,11 +1,29 @@
-import { Badge, Box, Button, Card, Flex, Heading, IconButton, Select, Switch, Text, TextArea, TextField } from "@radix-ui/themes";
+import {
+    AlertDialog,
+    Badge,
+    Box,
+    Button,
+    Card,
+    Flex,
+    Heading,
+    IconButton,
+    Select,
+    Separator,
+    Switch,
+    Text,
+    TextArea,
+    TextField,
+} from "@radix-ui/themes";
 import { Ingredient, Recipe, RecipeIngredient } from "cocktail-shared";
 import { useEffect, useState } from "react";
-import { unstable_usePrompt, useParams } from "react-router-dom";
+import { unstable_usePrompt, useNavigate, useParams } from "react-router-dom";
 import { SERVER_URL, fetchJson, fetcher } from "./util";
 import { UploadButton } from "./components/UploadButton";
 import { RecipeCard } from "./components/DrinkCard";
 import useSWR from "swr";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faSave } from "@fortawesome/free-regular-svg-icons";
+import { faFlask, faRemove, faTrash } from "@fortawesome/free-solid-svg-icons";
 
 export function EditIngredientForm(props: { ingredient: RecipeIngredient; onChange: (ingr: RecipeIngredient) => void }) {
     const { data: ingredients } = useSWR<Ingredient[]>(SERVER_URL + "/api/ingredients", fetcher);
@@ -59,7 +77,6 @@ export function EditIngredientForm(props: { ingredient: RecipeIngredient; onChan
                         <Button
                             color="blue"
                             variant="soft"
-                            size="1"
                             onClick={() =>
                                 props.onChange({
                                     ...ingr,
@@ -107,6 +124,9 @@ export function EditRecipePage() {
     const { id } = useParams();
     const [recipe, setRecipe] = useState<Recipe>();
     const [savedRecipe, setSavedRecipe] = useState<Recipe>();
+    const [submitting, setSubmitting] = useState(false);
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+    const navigate = useNavigate();
 
     useEffect(() => {
         void fetchJson("/api/recipes/" + id, "GET").then((r) => {
@@ -115,21 +135,39 @@ export function EditRecipePage() {
         });
     }, [id]);
 
+    async function deleteRecipe() {
+        setSubmitting(true);
+        try {
+            await new Promise((res) => setTimeout(res, 500));
+            await fetchJson("/api/recipes/" + id, "DELETE");
+            setShowDeleteDialog(false);
+            navigate("/recipe");
+        } finally {
+            setSubmitting(false);
+        }
+    }
+
     async function updateRecipe() {
-        const updated: Recipe = await fetchJson("/api/recipes/" + id, "PATCH", recipe);
-        setRecipe(updated);
-        setSavedRecipe(updated);
+        setSubmitting(true);
+        try {
+            await new Promise((res) => setTimeout(res, 500));
+            const updated: Recipe = await fetchJson("/api/recipes/" + id, "PATCH", recipe);
+            setRecipe(updated);
+            setSavedRecipe(updated);
+        } finally {
+            setSubmitting(false);
+        }
     }
 
     return (
         <Flex direction="column" gap="3" p="4">
             {recipe && (
                 <>
-                    <Flex>
+                    <Flex gap="3">
                         <Heading>Edit recipe</Heading>
                         <Box flexGrow="1"></Box>
-                        <Button disabled={recipe === savedRecipe} onClick={() => updateRecipe()} color="green">
-                            Save
+                        <Button loading={submitting} disabled={submitting || recipe === savedRecipe} onClick={() => updateRecipe()} color="green">
+                            <FontAwesomeIcon icon={faSave} /> Save
                         </Button>
                     </Flex>
 
@@ -164,7 +202,7 @@ export function EditRecipePage() {
                             <UploadButton onUploaded={(url) => setRecipe({ ...recipe, imageUrl: url })} />
                             {recipe.imageUrl && (
                                 <Button color="red" onClick={() => setRecipe({ ...recipe, imageUrl: null })}>
-                                    Remove image
+                                    <FontAwesomeIcon icon={faRemove} /> Remove image
                                 </Button>
                             )}
                         </Flex>
@@ -177,7 +215,7 @@ export function EditRecipePage() {
                             </Text>
                             <Box flexGrow="1"></Box>
                             <Button
-                                color="blue"
+                                color="green"
                                 onClick={() => {
                                     setRecipe({
                                         ...recipe,
@@ -192,7 +230,7 @@ export function EditRecipePage() {
                                         ],
                                     });
                                 }}>
-                                Add ingredient
+                                <FontAwesomeIcon icon={faFlask} /> Add ingredient
                             </Button>
                         </Flex>
 
@@ -219,6 +257,40 @@ export function EditRecipePage() {
                             )}
                         </Flex>
                     </div>
+
+                    <Separator style={{ width: "100%" }} />
+
+                    <Box>
+                        <AlertDialog.Root open={showDeleteDialog} onOpenChange={(o) => setShowDeleteDialog(o)}>
+                            <AlertDialog.Trigger>
+                                <Button color="red" tabIndex={-1}>
+                                    <FontAwesomeIcon icon={faTrash} /> Delete recipe
+                                </Button>
+                            </AlertDialog.Trigger>
+                            <AlertDialog.Content maxWidth="450px">
+                                <AlertDialog.Title>Delete recipe</AlertDialog.Title>
+                                <AlertDialog.Description size="2">Are you sure you want to delete {recipe.name}?</AlertDialog.Description>
+
+                                <Flex gap="3" mt="4" justify="end">
+                                    <AlertDialog.Cancel>
+                                        <Button variant="soft" color="gray">
+                                            Cancel
+                                        </Button>
+                                    </AlertDialog.Cancel>
+                                    <Button
+                                        variant="solid"
+                                        color="red"
+                                        loading={submitting}
+                                        disabled={submitting}
+                                        onClick={() => {
+                                            void deleteRecipe();
+                                        }}>
+                                        Yes, delete
+                                    </Button>
+                                </Flex>
+                            </AlertDialog.Content>
+                        </AlertDialog.Root>
+                    </Box>
                 </>
             )}
         </Flex>

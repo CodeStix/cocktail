@@ -1,9 +1,29 @@
-import { Badge, Box, Button, Card, Dialog, Flex, Heading, IconButton, Progress, Select, Separator, Switch, Text, TextField } from "@radix-ui/themes";
+import {
+    AlertDialog,
+    Badge,
+    Box,
+    Button,
+    Callout,
+    Card,
+    Dialog,
+    Flex,
+    Heading,
+    IconButton,
+    Progress,
+    Select,
+    Separator,
+    Switch,
+    Text,
+    TextField,
+} from "@radix-ui/themes";
 import { Ingredient, Output } from "cocktail-shared";
 import { SERVER_URL, fetchJson, fetcher } from "./util";
 import { useEffect, useState } from "react";
 import useSWR from "swr";
 import { UploadButton } from "./components/UploadButton";
+import { faEdit, faSave } from "@fortawesome/free-regular-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faAdd, faRemove, faTrash, faWarning } from "@fortawesome/free-solid-svg-icons";
 
 function IngredientCard(props: { ingredient: Ingredient; onEdit: (ingredient: Ingredient) => void }) {
     const ingredient = props.ingredient;
@@ -63,6 +83,12 @@ function IngredientCard(props: { ingredient: Ingredient; onEdit: (ingredient: In
                             </>
                         )}
 
+                        {(ingredient.usedInRecipe ?? []).length > 0 && (
+                            <Text as="p" size="2" style={{ opacity: 0.5 }}>
+                                Used by {ingredient.usedInRecipe?.map((e) => e.recipe.name).join(", ")}
+                            </Text>
+                        )}
+
                         <Flex style={{ alignSelf: "end" }} mt="auto" gap="2">
                             {/* <Button
                                 variant="ghost"
@@ -74,7 +100,7 @@ function IngredientCard(props: { ingredient: Ingredient; onEdit: (ingredient: In
                                 Refill to {ingredient.originalAmount}ml
                             </Button> */}
                             <Button onClick={() => props.onEdit(ingredient)} tabIndex={-1} mt="auto" color="blue">
-                                Edit
+                                <FontAwesomeIcon icon={faEdit} /> Edit
                             </Button>
                         </Flex>
                     </Flex>
@@ -87,21 +113,43 @@ function IngredientCard(props: { ingredient: Ingredient; onEdit: (ingredient: In
 export function InventoryPage() {
     const { data: ingredients, mutate } = useSWR<Ingredient[]>(SERVER_URL + "/api/ingredients", fetcher);
     const { data: outputs } = useSWR<Output[]>(SERVER_URL + "/api/outputs", fetcher);
-    const [edit, setEdit] = useState(false);
+    const [showEditDialog, setShowEditDialog] = useState(false);
     const [editing, setEditing] = useState<Ingredient | null>(null);
     const [remainingAmountStr, setRemainingAmountStr] = useState("");
     const [originalAmountStr, setOriginalAmountStr] = useState("");
+    const [submitting, setSubmitting] = useState(false);
+    const [showDeleleDialog, setShowDeleteDialog] = useState(false);
+    const cantDelete = (editing?.usedInRecipe ?? []).length > 0;
 
     async function updateIngredient() {
-        await fetchJson("/api/ingredients/" + editing!.id, "PATCH", editing);
-        setEdit(false);
-        mutate();
+        setSubmitting(true);
+        try {
+            await new Promise((res) => setTimeout(res, 500));
+            await fetchJson("/api/ingredients/" + editing!.id, "PATCH", editing);
+            setShowEditDialog(false);
+            mutate();
+        } finally {
+            setSubmitting(false);
+        }
     }
 
     async function newIngredient() {
         const newIngredient = await fetchJson<Ingredient>("/api/ingredients", "POST");
         setEditing(newIngredient);
-        setEdit(true);
+        setShowEditDialog(true);
+    }
+
+    async function deleteIngredient() {
+        setSubmitting(true);
+        try {
+            await new Promise((res) => setTimeout(res, 500));
+            await fetchJson("/api/ingredients/" + editing!.id, "DELETE");
+            setShowDeleteDialog(false);
+            setShowEditDialog(false);
+            mutate();
+        } finally {
+            setSubmitting(false);
+        }
     }
 
     useEffect(() => {
@@ -135,7 +183,9 @@ export function InventoryPage() {
             <Flex>
                 <Heading>Ingredients</Heading>
                 <Box flexGrow="1"></Box>
-                <Button onClick={() => newIngredient()}>New</Button>
+                <Button color="green" onClick={() => newIngredient()}>
+                    <FontAwesomeIcon icon={faAdd} /> New
+                </Button>
             </Flex>
             <Flex wrap="wrap" gap="3" direction="column">
                 {ingredients?.map((e) => (
@@ -143,12 +193,12 @@ export function InventoryPage() {
                         ingredient={e}
                         onEdit={(ingr) => {
                             setEditing(ingr);
-                            setEdit(true);
+                            setShowEditDialog(true);
                         }}
                     />
                 ))}
 
-                <Dialog.Root open={edit}>
+                <Dialog.Root open={showEditDialog}>
                     {/* <Dialog.Trigger>
                     <Button>Edit {editing?.name}</Button>
                 </Dialog.Trigger> */}
@@ -156,7 +206,6 @@ export function InventoryPage() {
                     {editing && (
                         <Dialog.Content maxWidth="450px">
                             <Dialog.Title>Edit {editing?.name}</Dialog.Title>
-
                             <Flex direction="column" gap="4">
                                 <Button
                                     onClick={() => setEditing({ ...editing, remainingAmount: editing.originalAmount })}
@@ -168,24 +217,18 @@ export function InventoryPage() {
                                 </Button>
                                 <Separator style={{ width: "100%" }} />
 
-                                <div>
-                                    <Text as="label" size="2" mb="1" weight="bold">
-                                        Image
-                                    </Text>
-                                    <Flex gap="1">
-                                        <UploadButton onUploaded={(url) => setEditing({ ...editing, imageUrl: url })} />
-                                        {editing.imageUrl && (
-                                            <Button color="red" onClick={() => setEditing({ ...editing, imageUrl: null })}>
-                                                Remove image
-                                            </Button>
-                                        )}
-                                    </Flex>
-                                </div>
                                 <label>
                                     <Text as="div" size="2" mb="1" weight="bold">
                                         Name
                                     </Text>
                                     <TextField.Root value={editing.name} onChange={(ev) => setEditing({ ...editing, name: ev.target.value })} />
+                                </label>
+
+                                <label>
+                                    <Text as="div" size="2" mb="1" weight="bold">
+                                        In fridge?
+                                    </Text>
+                                    <Switch checked={editing.inFridge} onCheckedChange={(checked) => setEditing({ ...editing, inFridge: checked })} />
                                 </label>
 
                                 <div>
@@ -247,7 +290,12 @@ export function InventoryPage() {
                                         <Button
                                             variant="soft"
                                             color="red"
-                                            onClick={() => setEditing({ ...editing, remainingAmount: Math.max(0, editing.remainingAmount - 10) })}>
+                                            onClick={() =>
+                                                setEditing({
+                                                    ...editing,
+                                                    remainingAmount: Math.max(0, editing.remainingAmount - 10),
+                                                })
+                                            }>
                                             - 10
                                         </Button>
                                         <TextField.Root
@@ -266,17 +314,44 @@ export function InventoryPage() {
                                         <Button
                                             variant="soft"
                                             color="green"
-                                            onClick={() => setEditing({ ...editing, remainingAmount: editing.remainingAmount + 10 })}>
+                                            disabled={editing.remainingAmount >= editing.originalAmount}
+                                            onClick={() =>
+                                                setEditing({
+                                                    ...editing,
+                                                    remainingAmount: Math.min(editing.originalAmount, editing.remainingAmount + 10),
+                                                })
+                                            }>
                                             + 10
                                         </Button>
                                         <Button
                                             variant="soft"
                                             color="green"
-                                            onClick={() => setEditing({ ...editing, remainingAmount: editing.remainingAmount + 100 })}>
+                                            disabled={editing.remainingAmount >= editing.originalAmount}
+                                            onClick={() =>
+                                                setEditing({
+                                                    ...editing,
+                                                    remainingAmount: Math.min(editing.originalAmount, editing.remainingAmount + 100),
+                                                })
+                                            }>
                                             + 100
                                         </Button>
                                     </Flex>
                                 </div>
+
+                                <div>
+                                    <Text as="label" size="2" mb="1" weight="bold">
+                                        Image
+                                    </Text>
+                                    <Flex gap="1">
+                                        <UploadButton onUploaded={(url) => setEditing({ ...editing, imageUrl: url })} />
+                                        {editing.imageUrl && (
+                                            <Button color="red" onClick={() => setEditing({ ...editing, imageUrl: null })}>
+                                                <FontAwesomeIcon icon={faRemove} /> Remove image
+                                            </Button>
+                                        )}
+                                    </Flex>
+                                </div>
+
                                 {/* <Flex gap="1" mt="1">
                                         {[0, 100, 250, 500, 750, 1000, 1500].map((e) => (
                                             <Button
@@ -292,12 +367,6 @@ export function InventoryPage() {
                                             </Button>
                                         ))}
                                     </Flex> */}
-                                <label>
-                                    <Text as="div" size="2" mb="1" weight="bold">
-                                        In fridge?
-                                    </Text>
-                                    <Switch checked={editing.inFridge} onCheckedChange={(checked) => setEditing({ ...editing, inFridge: checked })} />
-                                </label>
 
                                 <label>
                                     <Text as="div" size="2" mb="1" weight="bold">
@@ -318,26 +387,72 @@ export function InventoryPage() {
                                         </Select.Content>
                                     </Select.Root>
                                 </label>
+                                <Separator style={{ width: "100%" }} />
                             </Flex>
-
-                            <Flex gap="3" mt="4" justify="end">
+                            <Flex gap="3" mt="4">
+                                {/* <Dialog.Close> */}
+                                <Button variant="solid" color="red" onClick={() => setShowDeleteDialog(true)}>
+                                    <FontAwesomeIcon icon={faTrash} /> Delete
+                                </Button>
+                                <Box flexGrow="1"></Box>
+                                {/* </Dialog.Close> */}
                                 <Dialog.Close>
-                                    <Button variant="soft" color="gray" onClick={() => setEdit(false)}>
+                                    <Button variant="soft" color="gray" onClick={() => setShowEditDialog(false)}>
                                         Cancel
                                     </Button>
                                 </Dialog.Close>
-                                <Dialog.Close>
-                                    <Button
-                                        onClick={() => {
-                                            updateIngredient();
-                                        }}>
-                                        Save
-                                    </Button>
-                                </Dialog.Close>
+                                {/* <Dialog.Close> */}
+                                <Button
+                                    loading={submitting}
+                                    disabled={submitting}
+                                    color="green"
+                                    onClick={() => {
+                                        updateIngredient();
+                                    }}>
+                                    <FontAwesomeIcon icon={faSave} /> Save
+                                </Button>
+                                {/* </Dialog.Close> */}
                             </Flex>
                         </Dialog.Content>
                     )}
                 </Dialog.Root>
+
+                <AlertDialog.Root open={showDeleleDialog} onOpenChange={(o) => setShowDeleteDialog(o)}>
+                    <AlertDialog.Content maxWidth="450px">
+                        <AlertDialog.Title>Delete ingredient</AlertDialog.Title>
+                        <AlertDialog.Description size="2">
+                            {cantDelete ? (
+                                <Callout.Root color="amber">
+                                    <Callout.Icon>
+                                        <FontAwesomeIcon icon={faWarning} />
+                                    </Callout.Icon>
+                                    <Callout.Text>
+                                        This ingredient can't be removed because it is used by recipes (
+                                        {(editing?.usedInRecipe ?? []).map((e) => e.recipe.name).join(", ")}), delete the recipes first.
+                                    </Callout.Text>
+                                </Callout.Root>
+                            ) : (
+                                <>Are you sure you want to delete {editing?.name}?</>
+                            )}
+                        </AlertDialog.Description>
+
+                        <Flex gap="3" mt="4" justify="end">
+                            <AlertDialog.Cancel>
+                                <Button variant="soft" color="gray">
+                                    Cancel
+                                </Button>
+                            </AlertDialog.Cancel>
+                            <Button
+                                loading={submitting}
+                                disabled={submitting || cantDelete}
+                                variant="solid"
+                                color="red"
+                                onClick={() => deleteIngredient()}>
+                                Yes, delete
+                            </Button>
+                        </Flex>
+                    </AlertDialog.Content>
+                </AlertDialog.Root>
             </Flex>
         </Flex>
     );

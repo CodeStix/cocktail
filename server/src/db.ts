@@ -83,6 +83,41 @@ export async function getIngredients(): Promise<Ingredient[]> {
     return ingredients;
 }
 
+export async function getIngredient(id: number): Promise<Ingredient | null> {
+    const ingr = await database.ingredient.findUnique({
+        where: {
+            id: id,
+        },
+        select: {
+            id: true,
+            imageUrl: true,
+            inFridge: true,
+            name: true,
+            output: {
+                select: {
+                    id: true,
+                    index: true,
+                    name: true,
+                },
+            },
+            usedInRecipe: {
+                select: {
+                    recipe: {
+                        select: {
+                            id: true,
+                            name: true,
+                        },
+                    },
+                },
+            },
+            outputId: true,
+            remainingAmount: true,
+            originalAmount: true,
+        },
+    });
+    return ingr;
+}
+
 export async function updateIngredient(id: number, data: Partial<Ingredient>): Promise<Ingredient> {
     const ingr = await database.ingredient.update({
         where: {

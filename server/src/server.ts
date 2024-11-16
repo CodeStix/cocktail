@@ -14,6 +14,7 @@ import {
     deleteIngredient,
     deleteRecipe,
     getAllOutputs,
+    getIngredient,
     getIngredients,
     getOutputById,
     getRecipe,
@@ -26,30 +27,7 @@ import {
 import { json } from "body-parser";
 import multer from "multer";
 import path from "path";
-
-// const DRINKS: Drink[] = [
-//     {
-//         id: 0,
-//         name: "Mojito",
-//         themeColor: "green",
-//         description: "A well known and refreshing cocktail.",
-//         imageUrl: "public/cocktails/1.jpg",
-//     },
-//     {
-//         id: 1,
-//         name: "Sex on the beach",
-//         themeColor: "orange",
-//         description: "Very sweet and tasty.",
-//         imageUrl: "public/cocktails/2.jpg",
-//     },
-//     {
-//         id: 2,
-//         name: "Mai Tai",
-//         themeColor: "blue",
-//         description: "I don't know whats in it",
-//         imageUrl: "public/cocktails/3.jpg",
-//     },
-// ];
+import sharp from "sharp";
 
 let machine: CocktailMachine;
 
@@ -120,6 +98,10 @@ app.get("/api/ingredients", json(), async (req, res) => {
     res.json(await getIngredients());
 });
 
+app.get("/api/ingredients/:id", json(), async (req, res) => {
+    res.json(await getIngredient(parseInt(req.params.id)));
+});
+
 app.post("/api/ingredients", json(), async (req, res) => {
     res.json(await createIngredient());
 });
@@ -132,11 +114,17 @@ app.delete("/api/ingredients/:id", json(), async (req, res) => {
     res.json({ deleted: await deleteIngredient(parseInt(req.params.id)) });
 });
 
-app.post("/api/upload", upload.single("file"), (req, res) => {
+app.post("/api/upload", upload.single("file"), async (req, res) => {
     const filePath = req.file!.path;
+
     const ext = path.extname(req.file!.originalname);
-    fs.renameSync(filePath, filePath + ext);
-    console.log("Uploaded to", filePath);
+    const targetFilePath = filePath + ext;
+
+    await sharp(filePath).resize(200).toFile(targetFilePath);
+
+    fs.renameSync(filePath, filePath + "-original" + ext);
+
+    console.log("Uploaded to", targetFilePath);
     res.json({ url: "/uploads/" + req.file!.filename + ext });
 });
 

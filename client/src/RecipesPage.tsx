@@ -1,6 +1,6 @@
-import { Flex, Text, Button, Box, Card, Heading, Skeleton } from "@radix-ui/themes";
-import { ClientMessage, Recipe, ServerMessage } from "cocktail-shared";
-import { SERVER_URL, SERVER_WS_URL, fetcher } from "./util";
+import { Flex, Button, Box, Heading, Skeleton } from "@radix-ui/themes";
+import { Recipe } from "cocktail-shared";
+import { SERVER_URL, fetcher } from "./util";
 import useSWR from "swr";
 import { RecipeCard } from "./components/RecipeCard";
 

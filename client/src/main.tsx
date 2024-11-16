@@ -13,6 +13,9 @@ import { EditRecipesPage } from "./EditRecipesPage.tsx";
 import { EditIngredientPage } from "./EditIngredient.tsx";
 import "react-simple-keyboard/build/css/index.css";
 
+// Copy to server using
+// scp -r dist/* linaro@192.168.0.55:~/cocktail/cocktail2/server/public
+
 createRoot(document.getElementById("root")!).render(
     <StrictMode>
         <Theme accentColor="gray" radius="medium" appearance="dark" scaling="110%">

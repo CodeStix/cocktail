@@ -1,14 +1,15 @@
-import { Ingredient, Output, Recipe } from "cocktail-shared";
+import { Ingredient, Output } from "cocktail-shared";
 import { useContext, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { SERVER_URL, fetchJson, fetcher } from "./util";
-import { AlertDialog, Text, Box, Button, Callout, Dialog, Flex, Select, Separator, Switch, TextField, Heading, Skeleton } from "@radix-ui/themes";
+import { AlertDialog, Text, Box, Button, Callout, Flex, Select, Separator, Switch, TextField, Heading, Skeleton } from "@radix-ui/themes";
 import { faSave } from "@fortawesome/free-regular-svg-icons";
 import { faRemove, faTrash, faWarning } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import useSWR, { mutate } from "swr";
+import useSWR from "swr";
 import { UploadButton } from "./components/UploadButton";
 import { KeyboardContext } from "./KeyboardContext";
+import { IngredientCard } from "./InventoryPage";
 
 export function EditIngredientPage() {
     const { id } = useParams();
@@ -56,181 +57,182 @@ export function EditIngredientPage() {
     }
 
     return (
-        <Flex direction="column" p="4">
-            <Flex gap="3">
-                <Heading>Edit {editing?.name}</Heading>
-                {/* <Button variant="soft" color="gray" onClick={() => navigate("/inventory")}>
-                        Cancel
-                    </Button> */}
-                <Box flexGrow="1"></Box>
-                <Button
-                    loading={submitting}
-                    disabled={submitting}
-                    color="green"
-                    onClick={() => {
-                        updateIngredient();
-                    }}>
-                    <FontAwesomeIcon icon={faSave} /> Save
-                </Button>
-            </Flex>
+        <Flex direction="column" p="4" gap="3">
             {editing ? (
                 <>
-                    <Flex direction="column" gap="4" mt="4">
-                        {/* <Separator style={{ width: "100%" }} /> */}
+                    <Flex gap="3">
+                        <Heading>Edit {editing?.name}</Heading>
+                        {/* <Button variant="soft" color="gray" onClick={() => navigate("/inventory")}>
+                        Cancel
+                    </Button> */}
+                        <Box flexGrow="1"></Box>
+                        <Button
+                            loading={submitting}
+                            disabled={submitting}
+                            color="green"
+                            onClick={() => {
+                                updateIngredient();
+                            }}>
+                            <FontAwesomeIcon icon={faSave} /> Save
+                        </Button>
+                    </Flex>
 
-                        <label>
-                            <Text as="div" size="2" mb="1" weight="bold">
-                                Name
-                            </Text>
+                    {/* <Separator style={{ width: "100%" }} /> */}
+                    <IngredientCard ingredient={editing} />
+
+                    <label>
+                        <Text as="div" size="2" mb="1" weight="bold">
+                            Name
+                        </Text>
+                        <TextField.Root
+                            onFocus={(ev) => keyboard.show(ev.target, (val) => setEditing({ ...editing, name: val }))}
+                            onBlur={() => keyboard.hide()}
+                            value={editing.name}
+                            onChange={(ev) => {
+                                keyboard.setValue(ev.target.value);
+                                setEditing({ ...editing, name: ev.target.value });
+                            }}
+                        />
+                    </label>
+
+                    <label>
+                        <Text as="div" size="2" mb="1" weight="bold">
+                            In fridge?
+                        </Text>
+                        <Switch checked={editing.inFridge} onCheckedChange={(checked) => setEditing({ ...editing, inFridge: checked })} />
+                    </label>
+
+                    <div>
+                        <Text as="div" size="2" mb="1" weight="bold">
+                            Original amount (ml)
+                        </Text>
+                        <Flex align="center" gap="1">
+                            <Button
+                                variant="soft"
+                                color="red"
+                                onClick={() => setEditing({ ...editing, originalAmount: Math.max(0, editing.originalAmount - 100) })}>
+                                - 100
+                            </Button>
+                            <Button
+                                variant="soft"
+                                color="red"
+                                onClick={() => setEditing({ ...editing, originalAmount: Math.max(0, editing.originalAmount - 10) })}>
+                                - 10
+                            </Button>
                             <TextField.Root
-                                onFocus={(ev) => keyboard.show(ev.target, (val) => setEditing({ ...editing, name: val }))}
-                                onBlur={() => keyboard.hide()}
-                                value={editing.name}
+                                value={originalAmountStr}
                                 onChange={(ev) => {
-                                    keyboard.setValue(ev.target.value);
-                                    setEditing({ ...editing, name: ev.target.value });
-                                }}
-                            />
-                        </label>
+                                    const str = ev.target.value;
+                                    setOriginalAmountStr(str);
 
-                        <label>
-                            <Text as="div" size="2" mb="1" weight="bold">
-                                In fridge?
-                            </Text>
-                            <Switch checked={editing.inFridge} onCheckedChange={(checked) => setEditing({ ...editing, inFridge: checked })} />
-                        </label>
+                                    const num = parseFloat(str);
+                                    if (!isNaN(num)) {
+                                        setEditing({ ...editing, originalAmount: num });
+                                    }
+                                }}>
+                                <TextField.Slot side="right">ml</TextField.Slot>
+                            </TextField.Root>
+                            <Button
+                                variant="soft"
+                                color="green"
+                                onClick={() => setEditing({ ...editing, originalAmount: editing.originalAmount + 10 })}>
+                                + 10
+                            </Button>
+                            <Button
+                                variant="soft"
+                                color="green"
+                                onClick={() => setEditing({ ...editing, originalAmount: editing.originalAmount + 100 })}>
+                                + 100
+                            </Button>
+                        </Flex>
+                    </div>
 
-                        <div>
-                            <Text as="div" size="2" mb="1" weight="bold">
-                                Original amount (ml)
-                            </Text>
-                            <Flex align="center" gap="1">
-                                <Button
-                                    variant="soft"
-                                    color="red"
-                                    onClick={() => setEditing({ ...editing, originalAmount: Math.max(0, editing.originalAmount - 100) })}>
-                                    - 100
-                                </Button>
-                                <Button
-                                    variant="soft"
-                                    color="red"
-                                    onClick={() => setEditing({ ...editing, originalAmount: Math.max(0, editing.originalAmount - 10) })}>
-                                    - 10
-                                </Button>
-                                <TextField.Root
-                                    value={originalAmountStr}
-                                    onChange={(ev) => {
-                                        const str = ev.target.value;
-                                        setOriginalAmountStr(str);
+                    <div>
+                        <Text as="div" size="2" mb="1" weight="bold">
+                            Remaining amount (ml)
+                        </Text>
+                        <Flex align="center" gap="1">
+                            <Button
+                                variant="soft"
+                                color="red"
+                                onClick={() => setEditing({ ...editing, remainingAmount: Math.max(0, editing.remainingAmount - 100) })}>
+                                - 100
+                            </Button>
+                            <Button
+                                variant="soft"
+                                color="red"
+                                onClick={() =>
+                                    setEditing({
+                                        ...editing,
+                                        remainingAmount: Math.max(0, editing.remainingAmount - 10),
+                                    })
+                                }>
+                                - 10
+                            </Button>
+                            <TextField.Root
+                                value={remainingAmountStr}
+                                onChange={(ev) => {
+                                    const str = ev.target.value;
+                                    setRemainingAmountStr(str);
 
-                                        const num = parseFloat(str);
-                                        if (!isNaN(num)) {
-                                            setEditing({ ...editing, originalAmount: num });
-                                        }
-                                    }}>
-                                    <TextField.Slot side="right">ml</TextField.Slot>
-                                </TextField.Root>
-                                <Button
-                                    variant="soft"
-                                    color="green"
-                                    onClick={() => setEditing({ ...editing, originalAmount: editing.originalAmount + 10 })}>
-                                    + 10
-                                </Button>
-                                <Button
-                                    variant="soft"
-                                    color="green"
-                                    onClick={() => setEditing({ ...editing, originalAmount: editing.originalAmount + 100 })}>
-                                    + 100
-                                </Button>
-                            </Flex>
-                        </div>
+                                    const num = parseFloat(str);
+                                    if (!isNaN(num)) {
+                                        setEditing({ ...editing, remainingAmount: num });
+                                    }
+                                }}>
+                                <TextField.Slot side="right">ml</TextField.Slot>
+                            </TextField.Root>
+                            <Button
+                                variant="soft"
+                                color="green"
+                                disabled={editing.remainingAmount >= editing.originalAmount}
+                                onClick={() =>
+                                    setEditing({
+                                        ...editing,
+                                        remainingAmount: Math.min(editing.originalAmount, editing.remainingAmount + 10),
+                                    })
+                                }>
+                                + 10
+                            </Button>
+                            <Button
+                                variant="soft"
+                                color="green"
+                                disabled={editing.remainingAmount >= editing.originalAmount}
+                                onClick={() =>
+                                    setEditing({
+                                        ...editing,
+                                        remainingAmount: Math.min(editing.originalAmount, editing.remainingAmount + 100),
+                                    })
+                                }>
+                                + 100
+                            </Button>
+                            <Button
+                                disabled={editing.remainingAmount === editing.originalAmount}
+                                onClick={() => setEditing({ ...editing, remainingAmount: editing.originalAmount })}
+                                tabIndex={-1}
+                                mt="auto"
+                                // style={{ alignSelf: "end", fontWeight: "bold" }}
+                                color="blue">
+                                Refill to {editing.originalAmount}ml
+                            </Button>
+                        </Flex>
+                    </div>
 
-                        <div>
-                            <Text as="div" size="2" mb="1" weight="bold">
-                                Remaining amount (ml)
-                            </Text>
-                            <Flex align="center" gap="1">
-                                <Button
-                                    variant="soft"
-                                    color="red"
-                                    onClick={() => setEditing({ ...editing, remainingAmount: Math.max(0, editing.remainingAmount - 100) })}>
-                                    - 100
+                    <div>
+                        <Text as="label" size="2" mb="1" weight="bold">
+                            Image
+                        </Text>
+                        <Flex gap="1">
+                            <UploadButton onUploaded={(url) => setEditing({ ...editing, imageUrl: url })} />
+                            {editing.imageUrl && (
+                                <Button color="red" onClick={() => setEditing({ ...editing, imageUrl: null })}>
+                                    <FontAwesomeIcon icon={faRemove} /> Remove image
                                 </Button>
-                                <Button
-                                    variant="soft"
-                                    color="red"
-                                    onClick={() =>
-                                        setEditing({
-                                            ...editing,
-                                            remainingAmount: Math.max(0, editing.remainingAmount - 10),
-                                        })
-                                    }>
-                                    - 10
-                                </Button>
-                                <TextField.Root
-                                    value={remainingAmountStr}
-                                    onChange={(ev) => {
-                                        const str = ev.target.value;
-                                        setRemainingAmountStr(str);
+                            )}
+                        </Flex>
+                    </div>
 
-                                        const num = parseFloat(str);
-                                        if (!isNaN(num)) {
-                                            setEditing({ ...editing, remainingAmount: num });
-                                        }
-                                    }}>
-                                    <TextField.Slot side="right">ml</TextField.Slot>
-                                </TextField.Root>
-                                <Button
-                                    variant="soft"
-                                    color="green"
-                                    disabled={editing.remainingAmount >= editing.originalAmount}
-                                    onClick={() =>
-                                        setEditing({
-                                            ...editing,
-                                            remainingAmount: Math.min(editing.originalAmount, editing.remainingAmount + 10),
-                                        })
-                                    }>
-                                    + 10
-                                </Button>
-                                <Button
-                                    variant="soft"
-                                    color="green"
-                                    disabled={editing.remainingAmount >= editing.originalAmount}
-                                    onClick={() =>
-                                        setEditing({
-                                            ...editing,
-                                            remainingAmount: Math.min(editing.originalAmount, editing.remainingAmount + 100),
-                                        })
-                                    }>
-                                    + 100
-                                </Button>
-                                <Button
-                                    disabled={editing.remainingAmount === editing.originalAmount}
-                                    onClick={() => setEditing({ ...editing, remainingAmount: editing.originalAmount })}
-                                    tabIndex={-1}
-                                    mt="auto"
-                                    // style={{ alignSelf: "end", fontWeight: "bold" }}
-                                    color="blue">
-                                    Refill to {editing.originalAmount}ml
-                                </Button>
-                            </Flex>
-                        </div>
-
-                        <div>
-                            <Text as="label" size="2" mb="1" weight="bold">
-                                Image
-                            </Text>
-                            <Flex gap="1">
-                                <UploadButton onUploaded={(url) => setEditing({ ...editing, imageUrl: url })} />
-                                {editing.imageUrl && (
-                                    <Button color="red" onClick={() => setEditing({ ...editing, imageUrl: null })}>
-                                        <FontAwesomeIcon icon={faRemove} /> Remove image
-                                    </Button>
-                                )}
-                            </Flex>
-                        </div>
-
-                        {/* <Flex gap="1" mt="1">
+                    {/* <Flex gap="1" mt="1">
                                         {[0, 100, 250, 500, 750, 1000, 1500].map((e) => (
                                             <Button
                                                 size="1"
@@ -246,36 +248,38 @@ export function EditIngredientPage() {
                                         ))}
                                     </Flex> */}
 
-                        <label>
-                            <Text as="div" size="2" mb="1" weight="bold">
-                                Connected to
-                            </Text>
-                            <Select.Root
-                                required={false}
-                                value={editing.outputId === null ? "" : String(editing.outputId)}
-                                onValueChange={(value) => setEditing({ ...editing, outputId: value === "" ? null : parseInt(value) })}>
-                                <Select.Trigger placeholder="select output" style={{ minWidth: "300px" }} />
-                                <Select.Content>
-                                    {/* <Select.Item value="">Disable output</Select.Item> */}
-                                    {outputs?.map((output) => (
-                                        <Select.Item key={output.id} value={String(output.id)}>
-                                            {output.name}
-                                        </Select.Item>
-                                    ))}
-                                </Select.Content>
-                            </Select.Root>
-                        </label>
-                        <Separator mt="50vh" style={{ width: "100%" }} />
-                        <Box>
-                            <Button color="red" onClick={() => setShowDeleteDialog(true)}>
-                                <FontAwesomeIcon icon={faTrash} /> Delete ingredient
-                            </Button>
-                        </Box>
-                    </Flex>
+                    <label>
+                        <Text as="div" size="2" mb="1" weight="bold">
+                            Connected to
+                        </Text>
+                        <Select.Root
+                            required={false}
+                            value={editing.outputId === null ? "" : String(editing.outputId)}
+                            onValueChange={(value) => setEditing({ ...editing, outputId: value === "" ? null : parseInt(value) })}>
+                            <Select.Trigger placeholder="select output" style={{ minWidth: "300px" }} />
+                            <Select.Content>
+                                {/* <Select.Item value="">Disable output</Select.Item> */}
+                                {outputs?.map((output) => (
+                                    <Select.Item key={output.id} value={String(output.id)}>
+                                        {output.name}
+                                    </Select.Item>
+                                ))}
+                            </Select.Content>
+                        </Select.Root>
+                    </label>
+                    <Separator mt="50vh" style={{ width: "100%" }} />
+                    <Box>
+                        <Button color="red" onClick={() => setShowDeleteDialog(true)}>
+                            <FontAwesomeIcon icon={faTrash} /> Delete ingredient
+                        </Button>
+                    </Box>
                 </>
             ) : (
                 <>
-                    <Skeleton height="120px"></Skeleton>
+                    <Skeleton width="300px" height="35px"></Skeleton>
+                    <Skeleton height="127px"></Skeleton>
+                    <Skeleton height="61px"></Skeleton>
+                    <Skeleton height="61px"></Skeleton>
                 </>
             )}
 

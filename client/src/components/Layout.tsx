@@ -1,5 +1,5 @@
 import { Box, Flex, SegmentedControl, Text } from "@radix-ui/themes";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import * as packageJson from "../../package.json";
 import Keyboard, { SimpleKeyboard } from "react-simple-keyboard";
@@ -35,7 +35,7 @@ export function Layout(props: { children?: React.ReactNode }) {
             block: "center",
             inline: "nearest",
         });
-        // keyboardRef.current!.setInput(input.value);
+        keyboardRef.current!.setInput(input.value);
         keyboardSettingsRef.current = { onChange, hideOnEnter };
         setKeyboardShown(true);
     }

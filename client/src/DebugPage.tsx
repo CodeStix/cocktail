@@ -1,6 +1,6 @@
 import { Code, Flex, Heading, Select, Switch, Table, TextField } from "@radix-ui/themes";
 import { ClientMessage, Output } from "cocktail-shared";
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect } from "react";
 import useWebSocket from "react-use-websocket";
 import { SERVER_URL, SERVER_WS_URL, fetchJson, fetcher } from "./util";
 import useSWR from "swr";

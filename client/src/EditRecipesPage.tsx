@@ -1,4 +1,4 @@
-import { Flex, Button, Text, Heading, Box, IconButton, Skeleton } from "@radix-ui/themes";
+import { Flex, Button, Heading, Box, Skeleton } from "@radix-ui/themes";
 import { Recipe } from "cocktail-shared";
 import useSWR from "swr";
 import { SERVER_URL, fetchJson, fetcher } from "./util";
@@ -6,7 +6,7 @@ import { RecipeCard } from "./components/RecipeCard";
 import { useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faEdit } from "@fortawesome/free-regular-svg-icons";
-import { faAdd, faTrash } from "@fortawesome/free-solid-svg-icons";
+import { faAdd } from "@fortawesome/free-solid-svg-icons";
 
 export function EditRecipesPage() {
     const { data: recipes } = useSWR<Recipe[]>(SERVER_URL + "/api/recipes?all=1", fetcher);

@@ -1,40 +1,20 @@
-import {
-    AlertDialog,
-    Badge,
-    Box,
-    Button,
-    Callout,
-    Card,
-    Dialog,
-    Flex,
-    Heading,
-    IconButton,
-    Progress,
-    Select,
-    Separator,
-    Skeleton,
-    Switch,
-    Text,
-    TextField,
-} from "@radix-ui/themes";
-import { Ingredient, Output } from "cocktail-shared";
+import { Badge, Box, Button, Card, Flex, Heading, Progress, Skeleton, Text } from "@radix-ui/themes";
+import { Ingredient } from "cocktail-shared";
 import { SERVER_URL, fetchJson, fetcher } from "./util";
-import { useEffect, useState } from "react";
 import useSWR from "swr";
-import { UploadButton } from "./components/UploadButton";
-import { faEdit, faSave } from "@fortawesome/free-regular-svg-icons";
+import { faEdit } from "@fortawesome/free-regular-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faAdd, faRemove, faTrash, faWarning } from "@fortawesome/free-solid-svg-icons";
+import { faAdd } from "@fortawesome/free-solid-svg-icons";
 import { useNavigate } from "react-router-dom";
 
-export function IngredientCard(props: { ingredient: Ingredient; onEdit: (ingredient: Ingredient) => void }) {
+export function IngredientCard(props: { ingredient: Ingredient; onEdit?: (ingredient: Ingredient) => void }) {
     const ingredient = props.ingredient;
     return (
         <Card
             // style={{ width: "500px" }}
             asChild
             onClick={() => {
-                props.onEdit(ingredient);
+                props.onEdit?.(ingredient);
             }}>
             <button>
                 <Flex gap="3">
@@ -101,9 +81,11 @@ export function IngredientCard(props: { ingredient: Ingredient; onEdit: (ingredi
                                 color="blue">
                                 Refill to {ingredient.originalAmount}ml
                             </Button> */}
-                            <Button onClick={() => props.onEdit(ingredient)} tabIndex={-1} mt="auto" color="blue">
-                                <FontAwesomeIcon icon={faEdit} /> Edit
-                            </Button>
+                            {props.onEdit && (
+                                <Button onClick={() => props.onEdit!(ingredient)} tabIndex={-1} mt="auto" color="blue">
+                                    <FontAwesomeIcon icon={faEdit} /> Edit
+                                </Button>
+                            )}
                         </Flex>
                     </Flex>
                 </Flex>

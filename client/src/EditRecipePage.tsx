@@ -16,7 +16,7 @@ import {
     TextField,
 } from "@radix-ui/themes";
 import { Ingredient, Recipe, RecipeIngredient } from "cocktail-shared";
-import React, { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { SERVER_URL, fetchJson, fetcher } from "./util";
 import { UploadButton } from "./components/UploadButton";
@@ -84,8 +84,8 @@ export function EditIngredientForm(props: { ingredient: RecipeIngredient; onChan
                     onChange={(ev) => amountInputOnChange(ev.target.value)}>
                     <TextField.Slot side="right">ml</TextField.Slot>
                 </TextField.Root>
-                <Flex gap="1" mt="1">
-                    {[10, 20, 50, 75, 100, 125, 150, 200, 250, 300, 400].map((e) => (
+                <Flex gap="1" mt="1" wrap="wrap">
+                    {[10, 20, 30, 40, 50, 75, 100, 125, 150, 200, 250, 300, 400].map((e) => (
                         <Button
                             color="blue"
                             variant="soft"

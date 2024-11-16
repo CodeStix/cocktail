@@ -20,7 +20,7 @@ import { useEffect, useState } from "react";
 import { unstable_usePrompt, useNavigate, useParams } from "react-router-dom";
 import { SERVER_URL, fetchJson, fetcher } from "./util";
 import { UploadButton } from "./components/UploadButton";
-import { RecipeCard } from "./components/DrinkCard";
+import { RecipeCard } from "./components/RecipeCard";
 import useSWR from "swr";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSave } from "@fortawesome/free-regular-svg-icons";

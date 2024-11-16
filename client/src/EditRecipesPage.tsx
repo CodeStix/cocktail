@@ -2,7 +2,7 @@ import { Flex, Button, Text, Heading, Box, IconButton, Skeleton } from "@radix-u
 import { Recipe } from "cocktail-shared";
 import useSWR from "swr";
 import { SERVER_URL, fetchJson, fetcher } from "./util";
-import { RecipeCard } from "./components/DrinkCard";
+import { RecipeCard } from "./components/RecipeCard";
 import { useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faEdit } from "@fortawesome/free-regular-svg-icons";

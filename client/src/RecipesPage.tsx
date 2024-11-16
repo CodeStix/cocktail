@@ -2,7 +2,7 @@ import { Flex, Text, Button, Box, Card, Heading, Skeleton } from "@radix-ui/them
 import { ClientMessage, Recipe, ServerMessage } from "cocktail-shared";
 import { SERVER_URL, SERVER_WS_URL, fetcher } from "./util";
 import useSWR from "swr";
-import { RecipeCard } from "./components/DrinkCard";
+import { RecipeCard } from "./components/RecipeCard";
 
 export function RecipesPage() {
     const { data: recipes } = useSWR<Recipe[]>(SERVER_URL + "/api/recipes", fetcher);

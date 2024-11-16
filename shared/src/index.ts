@@ -41,6 +41,7 @@ export type Ingredient = {
             id: number;
         };
     }[];
+    themeColor: string;
 };
 
 export type ClientMessage = {

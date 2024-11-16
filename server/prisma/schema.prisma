@@ -45,6 +45,7 @@ model Ingredient {
   remainingAmount Float
   originalAmount  Float              @default(1000)
   inFridge        Boolean
+  themeColor      String             @default("blue")
 }
 
 model Output {

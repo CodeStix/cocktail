@@ -5,3 +5,11 @@ html,
     margin: 0;
     height: 100%;
 }
+
+.keyboard-show {
+    max-height: 300px;
+}
+
+.keyboard-hide {
+    max-height: 0;
+}

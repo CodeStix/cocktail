@@ -16,8 +16,8 @@ import {
     TextField,
 } from "@radix-ui/themes";
 import { Ingredient, Recipe, RecipeIngredient } from "cocktail-shared";
-import { useEffect, useState } from "react";
-import { unstable_usePrompt, useNavigate, useParams } from "react-router-dom";
+import React, { useContext, useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { SERVER_URL, fetchJson, fetcher } from "./util";
 import { UploadButton } from "./components/UploadButton";
 import { RecipeCard } from "./components/RecipeCard";
@@ -25,15 +25,31 @@ import useSWR from "swr";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSave } from "@fortawesome/free-regular-svg-icons";
 import { faFlask, faRemove, faTrash } from "@fortawesome/free-solid-svg-icons";
+import { KeyboardContext } from "./KeyboardContext";
 
 export function EditIngredientForm(props: { ingredient: RecipeIngredient; onChange: (ingr: RecipeIngredient) => void }) {
     const { data: ingredients } = useSWR<Ingredient[]>(SERVER_URL + "/api/ingredients", fetcher);
     const ingr = props.ingredient;
     const [amount, setAmount] = useState("");
+    const keyboard = useContext(KeyboardContext);
 
     useEffect(() => {
+        console.log("setAmount, ingr", props.ingredient);
         setAmount(String(props.ingredient.amount));
     }, [props.ingredient]);
+
+    function amountInputOnChange(value: string) {
+        setAmount(value);
+        keyboard.setValue(value);
+
+        if (!value.endsWith(".")) {
+            const num = parseFloat(value);
+            if (!isNaN(num)) {
+                console.log("match", value);
+                props.onChange({ ...ingr, amount: num });
+            }
+        }
+    }
 
     return (
         <Flex direction="column" gap="1">
@@ -62,15 +78,10 @@ export function EditIngredientForm(props: { ingredient: RecipeIngredient; onChan
                     Amount
                 </Text>
                 <TextField.Root
+                    onFocus={(ev) => keyboard.show(ev.target, (val) => amountInputOnChange(val))}
+                    onBlur={() => keyboard.hide()}
                     value={amount}
-                    onChange={(ev) => {
-                        setAmount(ev.target.value);
-
-                        const num = parseFloat(ev.target.value);
-                        if (!isNaN(num)) {
-                            props.onChange({ ...ingr, amount: num });
-                        }
-                    }}>
+                    onChange={(ev) => amountInputOnChange(ev.target.value)}>
                     <TextField.Slot side="right">ml</TextField.Slot>
                 </TextField.Root>
                 <Flex gap="1" mt="1">
@@ -128,6 +139,7 @@ export function EditRecipePage() {
     const [submitting, setSubmitting] = useState(false);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const navigate = useNavigate();
+    const keyboard = useContext(KeyboardContext);
 
     useEffect(() => {
         void fetchJson("/api/recipes/" + id, "GET").then((r) => {
@@ -178,14 +190,30 @@ export function EditRecipePage() {
                         <Text as="div" size="2" mb="1" weight="bold">
                             Name
                         </Text>
-                        <TextField.Root value={recipe.name} onChange={(ev) => setRecipe({ ...recipe, name: ev.target.value })} />
+                        <TextField.Root
+                            onFocus={(ev) => keyboard.show(ev.target, (val) => setRecipe({ ...recipe, name: val }))}
+                            onBlur={() => keyboard.hide()}
+                            value={recipe.name}
+                            onChange={(ev) => {
+                                keyboard.setValue(ev.target.value);
+                                setRecipe({ ...recipe, name: ev.target.value });
+                            }}
+                        />
                     </label>
 
                     <label>
                         <Text as="div" size="2" mb="1" weight="bold">
                             Description
                         </Text>
-                        <TextArea value={recipe.description} onChange={(ev) => setRecipe({ ...recipe, description: ev.target.value })} />
+                        <TextArea
+                            onFocus={(ev) => keyboard.show(ev.target, (val) => setRecipe({ ...recipe, description: val }))}
+                            onBlur={() => keyboard.hide()}
+                            value={recipe.description}
+                            onChange={(ev) => {
+                                keyboard.setValue(ev.target.value);
+                                setRecipe({ ...recipe, description: ev.target.value });
+                            }}
+                        />
                     </label>
 
                     <label>
@@ -237,9 +265,8 @@ export function EditRecipePage() {
 
                         <Flex direction="column" gap="3" mt="1">
                             {recipe.ingredients.map((e, i) => (
-                                <Card>
+                                <Card key={e.ingredientId}>
                                     <EditIngredientForm
-                                        key={e.ingredientId}
                                         ingredient={e}
                                         onChange={(ingr) => {
                                             const arr = [...recipe.ingredients];
@@ -259,7 +286,7 @@ export function EditRecipePage() {
                         </Flex>
                     </div>
 
-                    <Separator style={{ width: "100%" }} />
+                    <Separator mt="50vh" style={{ width: "100%" }} />
 
                     <Box>
                         <AlertDialog.Root open={showDeleteDialog} onOpenChange={(o) => setShowDeleteDialog(o)}>

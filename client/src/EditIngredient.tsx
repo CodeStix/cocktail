@@ -1,5 +1,5 @@
 import { Ingredient, Output, Recipe } from "cocktail-shared";
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { SERVER_URL, fetchJson, fetcher } from "./util";
 import { AlertDialog, Text, Box, Button, Callout, Dialog, Flex, Select, Separator, Switch, TextField, Heading, Skeleton } from "@radix-ui/themes";
@@ -8,6 +8,7 @@ import { faRemove, faTrash, faWarning } from "@fortawesome/free-solid-svg-icons"
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import useSWR, { mutate } from "swr";
 import { UploadButton } from "./components/UploadButton";
+import { KeyboardContext } from "./KeyboardContext";
 
 export function EditIngredientPage() {
     const { id } = useParams();
@@ -19,9 +20,10 @@ export function EditIngredientPage() {
     const [showDeleleDialog, setShowDeleteDialog] = useState(false);
     const cantDelete = (editing?.usedInRecipe ?? []).length > 0;
     const navigate = useNavigate();
+    const keyboard = useContext(KeyboardContext);
 
     useEffect(() => {
-        void fetchJson("/api/ingredient/" + id, "GET").then((e) => setEditing(e as Ingredient));
+        void fetchJson("/api/ingredients/" + id, "GET").then((e) => setEditing(e as Ingredient));
     }, []);
 
     useEffect(() => {
@@ -54,14 +56,13 @@ export function EditIngredientPage() {
     }
 
     return (
-        <Flex direction="column">
-            <Flex gap="3" mt="4">
+        <Flex direction="column" p="4">
+            <Flex gap="3">
                 <Heading>Edit {editing?.name}</Heading>
-                <Dialog.Close>
-                    <Button variant="soft" color="gray" onClick={() => navigate("/inventory")}>
+                {/* <Button variant="soft" color="gray" onClick={() => navigate("/inventory")}>
                         Cancel
-                    </Button>
-                </Dialog.Close>
+                    </Button> */}
+                <Box flexGrow="1"></Box>
                 <Button
                     loading={submitting}
                     disabled={submitting}
@@ -74,22 +75,22 @@ export function EditIngredientPage() {
             </Flex>
             {editing ? (
                 <>
-                    <Flex direction="column" gap="4">
-                        <Button
-                            onClick={() => setEditing({ ...editing, remainingAmount: editing.originalAmount })}
-                            tabIndex={-1}
-                            mt="auto"
-                            // style={{ alignSelf: "end", fontWeight: "bold" }}
-                            color="blue">
-                            Refill to {editing.originalAmount}ml
-                        </Button>
-                        <Separator style={{ width: "100%" }} />
+                    <Flex direction="column" gap="4" mt="4">
+                        {/* <Separator style={{ width: "100%" }} /> */}
 
                         <label>
                             <Text as="div" size="2" mb="1" weight="bold">
                                 Name
                             </Text>
-                            <TextField.Root value={editing.name} onChange={(ev) => setEditing({ ...editing, name: ev.target.value })} />
+                            <TextField.Root
+                                onFocus={(ev) => keyboard.show(ev.target, (val) => setEditing({ ...editing, name: val }))}
+                                onBlur={() => keyboard.hide()}
+                                value={editing.name}
+                                onChange={(ev) => {
+                                    keyboard.setValue(ev.target.value);
+                                    setEditing({ ...editing, name: ev.target.value });
+                                }}
+                            />
                         </label>
 
                         <label>
@@ -203,6 +204,15 @@ export function EditIngredientPage() {
                                     }>
                                     + 100
                                 </Button>
+                                <Button
+                                    disabled={editing.remainingAmount === editing.originalAmount}
+                                    onClick={() => setEditing({ ...editing, remainingAmount: editing.originalAmount })}
+                                    tabIndex={-1}
+                                    mt="auto"
+                                    // style={{ alignSelf: "end", fontWeight: "bold" }}
+                                    color="blue">
+                                    Refill to {editing.originalAmount}ml
+                                </Button>
                             </Flex>
                         </div>
 
@@ -255,7 +265,12 @@ export function EditIngredientPage() {
                                 </Select.Content>
                             </Select.Root>
                         </label>
-                        <Separator style={{ width: "100%" }} />
+                        <Separator mt="50vh" style={{ width: "100%" }} />
+                        <Box>
+                            <Button color="red" onClick={() => setShowDeleteDialog(true)}>
+                                <FontAwesomeIcon icon={faTrash} /> Delete ingredient
+                            </Button>
+                        </Box>
                     </Flex>
                 </>
             ) : (

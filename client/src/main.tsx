@@ -11,6 +11,7 @@ import { InventoryPage } from "./InventoryPage.tsx";
 import { EditRecipePage } from "./EditRecipePage.tsx";
 import { EditRecipesPage } from "./EditRecipesPage.tsx";
 import { EditIngredientPage } from "./EditIngredient.tsx";
+import "react-simple-keyboard/build/css/index.css";
 
 createRoot(document.getElementById("root")!).render(
     <StrictMode>

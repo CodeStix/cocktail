@@ -36,7 +36,7 @@ export function DebugPage() {
     useEffect(() => {
         if (!lastJsonMessage) return;
 
-        console.log("lastJsonMessage", lastJsonMessage);
+        // console.log("lastJsonMessage", lastJsonMessage);
 
         if (lastJsonMessage.type == "all-outputs") {
             mutate(lastJsonMessage.outputs, { revalidate: false });

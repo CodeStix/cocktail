@@ -26,6 +26,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSave } from "@fortawesome/free-regular-svg-icons";
 import { faFlask, faRemove, faTrash } from "@fortawesome/free-solid-svg-icons";
 import { KeyboardContext } from "./KeyboardContext";
+import { ColorSelect } from "./components/ColorSelect";
 
 export function EditIngredientForm(props: { ingredient: RecipeIngredient; onChange: (ingr: RecipeIngredient) => void }) {
     const { data: ingredients } = useSWR<Ingredient[]>(SERVER_URL + "/api/ingredients", fetcher);
@@ -223,7 +224,7 @@ export function EditRecipePage() {
                         <Switch checked={recipe.shown} onCheckedChange={(checked) => setRecipe({ ...recipe, shown: checked })} />
                     </label>
 
-                    <div>
+                    <Box>
                         <Text as="div" size="2" mb="1" weight="bold">
                             Image
                         </Text>
@@ -235,7 +236,14 @@ export function EditRecipePage() {
                                 </Button>
                             )}
                         </Flex>
-                    </div>
+                    </Box>
+
+                    <Box>
+                        <Text as="div" size="2" mb="1" weight="bold">
+                            Theme color
+                        </Text>
+                        <ColorSelect color={recipe.themeColor} onChange={(color) => setRecipe({ ...recipe, themeColor: color })} />
+                    </Box>
 
                     <div>
                         <Flex align="end">

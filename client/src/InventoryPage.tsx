@@ -46,7 +46,11 @@ export function IngredientCard(props: { ingredient: Ingredient; onEdit?: (ingred
                         {ingredient.inFridge ? (
                             <>
                                 <Box>
-                                    <Progress color="blue" value={(ingredient.remainingAmount / ingredient.originalAmount) * 100} size="2" />
+                                    <Progress
+                                        color={ingredient.themeColor as any}
+                                        value={(ingredient.remainingAmount / ingredient.originalAmount) * 100}
+                                        size="2"
+                                    />
                                 </Box>
 
                                 <Text as="p" size="2">
@@ -130,6 +134,13 @@ export function InventoryPage() {
                 <Button disabled={!ingredients} color="green" onClick={() => newIngredient()}>
                     <FontAwesomeIcon icon={faAdd} /> New
                 </Button>
+            </Flex>
+            <Flex gap="2" wrap="wrap">
+                {ingredients?.map((e) => (
+                    <Button color={e.themeColor as any} variant="soft" onClick={() => navigate("/ingredients/" + e.id)}>
+                        {e.name}
+                    </Button>
+                ))}
             </Flex>
             <Flex wrap="wrap" gap="3" direction="column">
                 {ingredients?.map((e) => (

@@ -27,7 +27,7 @@ export function RecipesPage() {
                                 console.log("mix", drink);
                             }}
                             tabIndex={-1}
-                            color="blue">
+                            color={drink.themeColor as any}>
                             Mix this!
                         </Button>
                     </RecipeCard>

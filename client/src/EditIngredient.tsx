@@ -10,6 +10,7 @@ import useSWR from "swr";
 import { UploadButton } from "./components/UploadButton";
 import { KeyboardContext } from "./KeyboardContext";
 import { IngredientCard } from "./InventoryPage";
+import { ColorSelect } from "./components/ColorSelect";
 
 export function EditIngredientPage() {
     const { id } = useParams();
@@ -102,7 +103,7 @@ export function EditIngredientPage() {
                         <Switch checked={editing.inFridge} onCheckedChange={(checked) => setEditing({ ...editing, inFridge: checked })} />
                     </label>
 
-                    <div>
+                    <Box>
                         <Text as="div" size="2" mb="1" weight="bold">
                             Original amount (ml)
                         </Text>
@@ -145,9 +146,9 @@ export function EditIngredientPage() {
                                 + 100
                             </Button>
                         </Flex>
-                    </div>
+                    </Box>
 
-                    <div>
+                    <Box>
                         <Text as="div" size="2" mb="1" weight="bold">
                             Remaining amount (ml)
                         </Text>
@@ -216,9 +217,9 @@ export function EditIngredientPage() {
                                 Refill to {editing.originalAmount}ml
                             </Button>
                         </Flex>
-                    </div>
+                    </Box>
 
-                    <div>
+                    <Box>
                         <Text as="label" size="2" mb="1" weight="bold">
                             Image
                         </Text>
@@ -230,7 +231,14 @@ export function EditIngredientPage() {
                                 </Button>
                             )}
                         </Flex>
-                    </div>
+                    </Box>
+
+                    <Box>
+                        <Text as="div" size="2" mb="1" weight="bold">
+                            Theme color
+                        </Text>
+                        <ColorSelect color={editing.themeColor} onChange={(color) => setEditing({ ...editing, themeColor: color })} />
+                    </Box>
 
                     {/* <Flex gap="1" mt="1">
                                         {[0, 100, 250, 500, 750, 1000, 1500].map((e) => (

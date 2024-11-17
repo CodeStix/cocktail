@@ -73,39 +73,66 @@ function inactiveLedAnimation(time: number) {
     return 0;
 }
 
+export type CocktailMachineCommand =
+    | {
+          type: "prepare-dispense";
+          dispenseSequence: {
+              outputs: { outputId: number; startingMl: number; remainingMl: number }[];
+          }[];
+      }
+    | {
+          type: "full-clean";
+          thoroughly: boolean;
+      };
+
 export class CocktailMachine extends EventEmitter {
+    idleFullCleanInterval = 60 * 2;
+    gotoSleepTimeout = 60 * 5;
+
     private _relay12v!: PCF8575Driver;
     private _relay24v!: PCF8575Driver;
     // private ads!: ADS1115;
     relays!: RelayDriver;
-    led!: PCA9685Driver;
-    flowCounter!: CounterDriver;
+    private led!: PCA9685Driver;
+    private flowCounter!: CounterDriver;
 
-    state = State.IDLE;
+    private state = State.IDLE;
 
-    outputs: Output[] = [];
+    private commandQueue: CocktailMachineCommand[] = [];
+    // private outputs: Output[] = [];
 
     // Clean state
-    // currentlyCleaningOutputIndex = 0;
-    dirtyOutputs = new Set<Output>();
-    currentlyCleaningOutput: Output | null = null;
-    isThoroughClean = true;
-    cleanNextOutputAt = 0;
+    private dirtyOutputs = new Set<Output>();
+    private currentlyCleaningOutput: Output | null = null;
+    private isThoroughClean = true;
+    private cleanNextOutputAt = 0;
 
     // Dispense state
-    dispenseSequence!: {
-        outputs: { outputId: number; remainingMl: number }[];
+    private dispenseSequence!: {
+        outputs: { outputId: number; startingMl: number; remainingMl: number }[];
     }[];
-    dispenseSequenceIndex = 0;
-    // currentIngredientMlRemaining = Number.MAX_SAFE_INTEGER;
+    private dispenseSequenceIndex = 0;
 
-    idleCleanInterval = 60 * 2;
-    nextCleanAt = Number.MAX_SAFE_INTEGER;
-    gotoSleepTimeout = 60 * 5;
-    gotoSleepAt = Number.MAX_SAFE_INTEGER;
+    private nextFullCleanAt = Number.MAX_SAFE_INTEGER;
+    private gotoSleepAt = Number.MAX_SAFE_INTEGER;
 
-    constructor(private bus: i2c.PromisifiedBus) {
+    private lastEventLoopTimeMs = new Date().getTime();
+
+    getOutputById: (id: number) => Promise<Output>;
+    getAllOutputs: () => Promise<Output[]>;
+
+    constructor(private bus: i2c.PromisifiedBus, getOutputById: (id: number) => Promise<Output>, getAllOutputs: () => Promise<Output[]>) {
         super();
+        this.getOutputById = getOutputById;
+        this.getAllOutputs = getAllOutputs;
+
+        const time = new Date().getTime() / 1000;
+        this.nextFullCleanAt = time + this.idleFullCleanInterval;
+        this.gotoSleepAt = time + this.gotoSleepTimeout;
+    }
+
+    executeCommand(command: CocktailMachineCommand) {
+        this.commandQueue.push(command);
     }
 
     public async initialize() {
@@ -144,33 +171,29 @@ export class CocktailMachine extends EventEmitter {
         void this.eventLoop();
     }
 
-    public setOutputs(outputs: Output[]) {
-        this.outputs = outputs;
-    }
-
-    private getOutputById(id: number) {
-        const output = this.outputs.find((e) => e.id === id);
-        if (!output) throw new Error("Output with id not found " + id);
-        return output;
-    }
+    // private getOutputById(id: number) {
+    //     const output = this.outputs.find((e) => e.id === id);
+    //     if (!output) throw new Error("Output with id not found " + id);
+    //     return output;
+    // }
 
     private async ledDriverLoop() {
         console.log(chalk.green("Led driver loop started"));
 
         while (true) {
-            const now = new Date().getTime();
+            const timeMs = new Date().getTime();
             try {
                 switch (this.state) {
                     case State.IDLE: {
                         for (let i = 0; i < BUTTON_PINS.length; i++) {
-                            await this.led.setDutyCycle(i, interactableLedAnimation(now + 100 * i));
+                            await this.led.setDutyCycle(i, interactableLedAnimation(timeMs + 100 * i));
                         }
                         break;
                     }
 
                     case State.SLEEP: {
                         for (let i = 0; i < BUTTON_PINS.length; i++) {
-                            await this.led.setDutyCycle(i, disabledLedAnimation(now));
+                            await this.led.setDutyCycle(i, disabledLedAnimation(timeMs));
                         }
                         break;
                     }
@@ -178,9 +201,9 @@ export class CocktailMachine extends EventEmitter {
                     case State.BEFORE_DISPENSE: {
                         for (let i = 0; i < BUTTON_PINS.length; i++) {
                             if (i === WHITE_BUTTON || i == RED_BUTTON) {
-                                await this.led.setDutyCycle(i, interactableLedAnimation(now));
+                                await this.led.setDutyCycle(i, interactableLedAnimation(timeMs));
                             } else {
-                                await this.led.setDutyCycle(i, inactiveLedAnimation(now));
+                                await this.led.setDutyCycle(i, inactiveLedAnimation(timeMs));
                             }
                         }
                         break;
@@ -188,11 +211,11 @@ export class CocktailMachine extends EventEmitter {
 
                     case State.DISPENSE: {
                         for (let i = 0; i < BUTTON_PINS.length; i++) {
-                            let value = Math.sin(now / 100) / 2 + 0.5;
+                            let value = Math.sin(timeMs / 100) / 2 + 0.5;
                             if (i === WHITE_BUTTON) {
-                                await this.led.setDutyCycle(i, activeLedAnimation(now));
+                                await this.led.setDutyCycle(i, activeLedAnimation(timeMs));
                             } else {
-                                await this.led.setDutyCycle(i, inactiveLedAnimation(now));
+                                await this.led.setDutyCycle(i, inactiveLedAnimation(timeMs));
                             }
                         }
                         break;
@@ -201,9 +224,9 @@ export class CocktailMachine extends EventEmitter {
                     case State.AFTER_DISPENSE: {
                         for (let i = 0; i < BUTTON_PINS.length; i++) {
                             if (i === GREEN_BUTTON || i == RED_BUTTON) {
-                                await this.led.setDutyCycle(i, interactableLedAnimation(now));
+                                await this.led.setDutyCycle(i, interactableLedAnimation(timeMs));
                             } else {
-                                await this.led.setDutyCycle(i, inactiveLedAnimation(now));
+                                await this.led.setDutyCycle(i, inactiveLedAnimation(timeMs));
                             }
                         }
                         break;
@@ -211,7 +234,7 @@ export class CocktailMachine extends EventEmitter {
 
                     case State.CLEAN: {
                         for (let i = 0; i < BUTTON_PINS.length; i++) {
-                            await this.led.setDutyCycle(i, disabledLedAnimation(now));
+                            await this.led.setDutyCycle(i, disabledLedAnimation(timeMs));
                         }
                         break;
                     }
@@ -250,7 +273,7 @@ export class CocktailMachine extends EventEmitter {
         const time = new Date().getTime() / 1000;
         try {
             if (this.state == State.CLEAN) {
-                this.nextCleanAt = time + this.idleCleanInterval;
+                this.nextFullCleanAt = time + this.idleFullCleanInterval;
             }
             this.gotoSleepAt = time + this.gotoSleepTimeout;
 
@@ -268,7 +291,7 @@ export class CocktailMachine extends EventEmitter {
                 case State.CLEAN: {
                     this.currentlyCleaningOutput = null;
 
-                    for (const output of this.outputs) {
+                    for (const output of await this.getAllOutputs()) {
                         if (output.settings.requiredWhenCleaning ?? false) {
                             await this.relays.setGpio(output.index, true);
                             this.dirtyOutputs.delete(output);
@@ -279,8 +302,12 @@ export class CocktailMachine extends EventEmitter {
                     break;
                 }
 
+                case State.BEFORE_DISPENSE: {
+                    break;
+                }
+
                 case State.DISPENSE: {
-                    for (const output of this.outputs) {
+                    for (const output of await this.getAllOutputs()) {
                         if (output.settings.requiredWhenDispensing ?? false) {
                             await this.relays.setGpio(output.index, true);
                         }
@@ -306,11 +333,13 @@ export class CocktailMachine extends EventEmitter {
         }
     }
 
-    // public dispenseIngredients(ingr: RecipeIngredient[]) {
-    //     ingr[0].ingredient;
-    // }
-
-    lastEventLoopTimeMs = new Date().getTime();
+    private async transitionToClean(opts: { isThoroughClean: boolean; cleanAll: boolean }) {
+        this.isThoroughClean = opts.isThoroughClean;
+        if (opts.cleanAll) {
+            (await this.getAllOutputs()).filter((e) => e.settings.includeInFullClean ?? false).forEach((e) => this.dirtyOutputs.add(e));
+        }
+        await this.transitionState(State.CLEAN);
+    }
 
     private async eventLoop() {
         console.log(chalk.green("Event loop started"));
@@ -351,34 +380,59 @@ export class CocktailMachine extends EventEmitter {
 
                 switch (this.state) {
                     case State.IDLE: {
-                        if (time > this.nextCleanAt) {
-                            this.isThoroughClean = false;
-                            this.transitionState(State.CLEAN);
-                            this.nextCleanAt = time + this.idleCleanInterval;
+                        if (time > this.nextFullCleanAt) {
+                            this.nextFullCleanAt = time + this.idleFullCleanInterval;
+                            await this.transitionToClean({
+                                isThoroughClean: false,
+                                cleanAll: true,
+                            });
+                            break;
                         }
 
                         if (time > this.gotoSleepAt) {
-                            this.transitionState(State.SLEEP);
+                            await this.transitionState(State.SLEEP);
                             break;
                         }
 
                         if (changedButtons[POWER_BUTTON] && buttonStates[POWER_BUTTON]) {
-                            this.transitionState(State.SLEEP);
+                            await this.transitionState(State.SLEEP);
                             break;
+                        }
+
+                        if (this.commandQueue.length > 0) {
+                            const cmd = this.commandQueue.shift()!;
+                            switch (cmd.type) {
+                                case "prepare-dispense": {
+                                    this.dispenseSequence = cmd.dispenseSequence;
+                                    await this.transitionState(State.BEFORE_DISPENSE);
+                                    break;
+                                }
+                                case "full-clean": {
+                                    this.nextFullCleanAt = time + this.idleFullCleanInterval;
+                                    await this.transitionToClean({
+                                        cleanAll: true,
+                                        isThoroughClean: cmd.thoroughly,
+                                    });
+                                    break;
+                                }
+                            }
                         }
 
                         break;
                     }
 
                     case State.SLEEP: {
-                        if (time > this.nextCleanAt) {
-                            this.isThoroughClean = false;
-                            this.transitionState(State.CLEAN);
-                            this.nextCleanAt = time + this.idleCleanInterval;
+                        if (time > this.nextFullCleanAt) {
+                            this.nextFullCleanAt = time + this.idleFullCleanInterval;
+                            await this.transitionToClean({
+                                isThoroughClean: false,
+                                cleanAll: true,
+                            });
+                            break;
                         }
 
                         if (changedButtons.some((e) => e)) {
-                            this.transitionState(State.IDLE);
+                            await this.transitionState(State.IDLE);
                             break;
                         }
 
@@ -393,7 +447,7 @@ export class CocktailMachine extends EventEmitter {
 
                             if (this.dirtyOutputs.size <= 0) {
                                 // Done cleaning
-                                this.transitionState(State.IDLE);
+                                await this.transitionState(State.IDLE);
                                 break;
                             }
 
@@ -409,13 +463,15 @@ export class CocktailMachine extends EventEmitter {
 
                     case State.BEFORE_DISPENSE: {
                         if (changedButtons[WHITE_BUTTON] && buttonStates[WHITE_BUTTON]) {
-                            this.transitionState(State.DISPENSE);
+                            await this.transitionState(State.DISPENSE);
                             break;
                         }
 
                         if (changedButtons[RED_BUTTON] && buttonStates[RED_BUTTON]) {
-                            this.isThoroughClean = true;
-                            this.transitionState(State.CLEAN);
+                            await this.transitionToClean({
+                                isThoroughClean: true,
+                                cleanAll: false,
+                            });
                             break;
                         }
 
@@ -431,7 +487,7 @@ export class CocktailMachine extends EventEmitter {
                                 if (partOut.remainingMl > 0) {
                                     gotoNextPart = false;
 
-                                    const output = this.getOutputById(partOut.outputId);
+                                    const output = await this.getOutputById(partOut.outputId);
                                     const mlPerSecond = output.settings.mlPerSecond ?? 0.01;
                                     if (mlPerSecond === "use-counter") {
                                         partOut.remainingMl -= deltaLiters * 1000;
@@ -450,13 +506,13 @@ export class CocktailMachine extends EventEmitter {
                             this.dispenseSequenceIndex += 1;
                             if (this.dispenseSequenceIndex >= this.dispenseSequence.length) {
                                 // Dispense done!
-                                this.transitionState(State.AFTER_DISPENSE);
+                                await this.transitionState(State.AFTER_DISPENSE);
                                 break;
                             } else {
                                 const part = this.dispenseSequence[this.dispenseSequenceIndex];
                                 for (let i = 0; i < part.outputs.length; i++) {
                                     const partOut = part.outputs[i];
-                                    const output = this.getOutputById(partOut.outputId);
+                                    const output = await this.getOutputById(partOut.outputId);
                                     this.dirtyOutputs.add(output);
                                     await this.relays.setGpio(output.index, true);
                                 }
@@ -465,8 +521,20 @@ export class CocktailMachine extends EventEmitter {
 
                         if (changedButtons[WHITE_BUTTON] && buttonStates[WHITE_BUTTON]) {
                             // Cancel dispense
-                            this.transitionState(State.AFTER_DISPENSE);
+                            await this.transitionState(State.AFTER_DISPENSE);
                             break;
+                        }
+
+                        if (true) {
+                            let totalMl = 0;
+                            let totalRemainingMl = 0;
+                            for (const output of this.dispenseSequence) {
+                                for (const part of output.outputs) {
+                                    totalMl += part.startingMl;
+                                    totalRemainingMl += part.remainingMl;
+                                }
+                            }
+                            this.emit("dispense-progress", (totalMl - totalRemainingMl) / totalMl, "Dispensing");
                         }
 
                         break;
@@ -475,14 +543,16 @@ export class CocktailMachine extends EventEmitter {
                     case State.AFTER_DISPENSE: {
                         if (changedButtons[GREEN_BUTTON] && buttonStates[GREEN_BUTTON]) {
                             // Dispense same recipe again
-                            this.transitionState(State.DISPENSE);
+                            await this.transitionState(State.DISPENSE);
                             break;
                         }
 
                         if (changedButtons[RED_BUTTON] && buttonStates[RED_BUTTON]) {
                             // Stop
-                            this.isThoroughClean = true;
-                            this.transitionState(State.CLEAN);
+                            await this.transitionToClean({
+                                isThoroughClean: true,
+                                cleanAll: false,
+                            });
                             break;
                         }
                         break;

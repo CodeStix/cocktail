@@ -25,6 +25,8 @@ export type OutputSettings = {
     requiredWhenCleaning?: boolean;
     // When true, output will be constantly on during dispensing
     requiredWhenDispensing?: boolean;
+    // Will be included in a full-clean
+    includeInFullClean?: boolean;
 };
 
 export type Output = {

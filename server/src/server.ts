@@ -64,6 +64,39 @@ app.patch("/api/recipes/:id", json(), async (req, res) => {
 
 app.post("/api/recipes/:id/dispense", json(), async (req, res) => {
     const id = parseInt(req.params.id);
+
+    const sequence: {
+        outputs: { outputId: number; startingMl: number; remainingMl: number }[];
+    }[] = [];
+
+    const recipe = await getRecipe(id);
+    if (!recipe) {
+        res.status(404).end();
+        return;
+    }
+
+    for (const ingr of recipe.ingredients) {
+        if (!ingr.ingredient || typeof ingr.ingredient.outputId !== "number") {
+            continue;
+        }
+
+        const data = {
+            outputId: ingr.ingredient.outputId,
+            remainingMl: ingr.amount,
+            startingMl: ingr.amount,
+        };
+
+        if (ingr.order in sequence) {
+            sequence[ingr.order].outputs.push(data);
+        } else {
+            sequence[ingr.order] = { outputs: [data] };
+        }
+    }
+
+    machine.executeCommand({
+        type: "prepare-dispense",
+        dispenseSequence: sequence,
+    });
     res.json({});
 });
 
@@ -194,7 +227,7 @@ async function main() {
     console.time(chalk.green("Start setup"));
 
     let bus = await i2c.openPromisified(6);
-    machine = new CocktailMachine(bus);
+    machine = new CocktailMachine(bus, getOutputById, getAllOutputs);
     await machine.initialize();
 
     const server = app.listen(port, () => {
@@ -238,6 +271,16 @@ async function main() {
             sendMessage(c, {
                 type: "all-outputs",
                 outputs: await getOutputsWithState(),
+            });
+        });
+    });
+
+    machine.on("dispense-progress", (progress: number, status: string) => {
+        socketServer.clients.forEach(async (c) => {
+            sendMessage(c, {
+                type: "dispense-progress",
+                progress: progress,
+                status: status,
             });
         });
     });

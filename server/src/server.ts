@@ -275,12 +275,22 @@ async function main() {
         });
     });
 
-    machine.on("status-update", (data: { progress?: number; status: string }) => {
+    machine.on("dispense-progress", (data: { progress?: number; status: "dispensing" | "done" | "waiting" }) => {
         socketServer.clients.forEach(async (c) => {
             sendMessage(c, {
-                type: "status-update",
+                type: "dispense-progress",
                 status: data.status,
                 progress: data.progress,
+            });
+        });
+    });
+
+    machine.on("state-change", (data: { from: string; to: string }) => {
+        socketServer.clients.forEach(async (c) => {
+            sendMessage(c, {
+                type: "state-change",
+                from: data.from,
+                to: data.to,
             });
         });
     });

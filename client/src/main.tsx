@@ -12,6 +12,7 @@ import { EditRecipePage } from "./EditRecipePage.tsx";
 import { EditRecipesPage } from "./EditRecipesPage.tsx";
 import { EditIngredientPage } from "./EditIngredient.tsx";
 import "react-simple-keyboard/build/css/index.css";
+import { DispensePage } from "./DispensePage.tsx";
 
 // Copy to server using
 // scp -r dist/* linaro@192.168.0.55:~/cocktail/cocktail2/server/public
@@ -27,6 +28,7 @@ createRoot(document.getElementById("root")!).render(
                         <Route path="/inventory" Component={InventoryPage} />
                         <Route path="/recipe" Component={EditRecipesPage} />
                         <Route path="/recipe/:id" Component={EditRecipePage} />
+                        <Route path="/dispense/:id" Component={DispensePage} />
                         <Route path="/ingredients/:id" Component={EditIngredientPage} />
                     </Routes>
                 </Layout>

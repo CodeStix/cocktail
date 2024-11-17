@@ -3,9 +3,11 @@ import { Recipe } from "cocktail-shared";
 import { SERVER_URL, fetcher } from "./util";
 import useSWR from "swr";
 import { RecipeCard } from "./components/RecipeCard";
+import { useNavigate } from "react-router-dom";
 
 export function RecipesPage() {
     const { data: recipes } = useSWR<Recipe[]>(SERVER_URL + "/api/recipes", fetcher);
+    const navigate = useNavigate();
 
     return (
         <Flex direction="column" p="4" gap="3">
@@ -20,11 +22,11 @@ export function RecipesPage() {
                         recipe={drink}
                         key={drink.id}
                         onClick={() => {
-                            console.log("mix", drink);
+                            navigate("/dispense/" + drink.id);
                         }}>
                         <Button
                             onClick={() => {
-                                console.log("mix", drink);
+                                navigate("/dispense/" + drink.id);
                             }}
                             tabIndex={-1}
                             color={drink.themeColor as any}>

@@ -5,6 +5,8 @@ import { ADS1115 } from "./ads";
 import { digitalRead, digitalWrite, pinMode, PinMode, pullUpDnControl, PullUpDownMode } from "tinker-gpio";
 import chalk from "chalk";
 import { CounterDriver } from "./counter";
+import { EventEmitter } from "events";
+import { Output } from "cocktail-shared";
 
 const BUTTON_PINS = [15, 16, 1, 6, 10, 31];
 
@@ -15,41 +17,96 @@ const VALVE_COLD_WATER = 11;
 const VALVE_SPARKLING_WATER = 10;
 const WASTE_PUMP = 14;
 
+const RED_BUTTON = 0;
+const BLUE_BUTTON = 1;
+const WHITE_BUTTON = 2;
+const YELLOW_BUTTON = 3;
+const GREEN_BUTTON = 4;
+const POWER_BUTTON = 5;
+
 const FRAMES_PER_SECOND = 120;
 
 const FLOW_SENSOR_ROTATIONS_PER_LITER = 346;
 
 enum State {
-    IDLE = 0,
-    COLD_WATER = 1,
-    SPARKLING_WATER = 2,
-    ROOM_TEMP_WATER = 3,
-    SODA = 4,
+    IDLE,
+    SLEEP,
+    CLEAN,
+    BEFORE_DISPENSE,
+    DISPENSE,
+    AFTER_DISPENSE,
     // SODA_WATER,
     // CLEAN,
     // DRINKING_MODE = 1,
     // CLEAN_MODE = 2,
 }
 
-let state = State.IDLE;
+// const BUTTON_DISPENSE = 2;
+// const BUTTON_SPARKLING_WATER = 3;
+// const BUTTON_COLD_WATER = 4;
+// const BUTTON_ROOM_TEMP_WATER = 1;
+// const BUTTON_SODA = 0;
 
-const BUTTON_DISPENSE = 2;
-const BUTTON_SPARKLING_WATER = 3;
-const BUTTON_COLD_WATER = 4;
-const BUTTON_ROOM_TEMP_WATER = 1;
-const BUTTON_SODA = 0;
+// export interface CocktailMachineOutput {
+//     index: number;
+//     mlPerSecond: number | "use-counter";
+//     remainingMl: number;
+// }
 
-export class CocktailMachine {
-    private relay12v!: PCF8575Driver;
-    private relay24v!: PCF8575Driver;
+function interactableLedAnimation(time: number) {
+    return Math.sin(time / 250) / 4 + 0.75;
+}
+
+function activeLedAnimation(time: number) {
+    return Math.sin(time / 100) / 2 + 0.5;
+}
+
+function blinkingLedAnimation(time: number) {
+    return Math.floor(time / 1000) % 2 == 0 ? 1 : 0;
+}
+
+function disabledLedAnimation(time: number) {
+    return 0.05;
+}
+
+function inactiveLedAnimation(time: number) {
+    return 0;
+}
+
+export class CocktailMachine extends EventEmitter {
+    private _relay12v!: PCF8575Driver;
+    private _relay24v!: PCF8575Driver;
     // private ads!: ADS1115;
     relays!: RelayDriver;
     led!: PCA9685Driver;
     flowCounter!: CounterDriver;
 
-    private stopWaterWastingAt: number = Number.MAX_SAFE_INTEGER;
+    state = State.IDLE;
 
-    constructor(private bus: i2c.PromisifiedBus) {}
+    outputs: Output[] = [];
+
+    // Clean state
+    // currentlyCleaningOutputIndex = 0;
+    dirtyOutputs = new Set<Output>();
+    currentlyCleaningOutput: Output | null = null;
+    isThoroughClean = true;
+    cleanNextOutputAt = 0;
+
+    // Dispense state
+    dispenseSequence!: {
+        outputs: { outputId: number; remainingMl: number }[];
+    }[];
+    dispenseSequenceIndex = 0;
+    // currentIngredientMlRemaining = Number.MAX_SAFE_INTEGER;
+
+    idleCleanInterval = 60 * 2;
+    nextCleanAt = Number.MAX_SAFE_INTEGER;
+    gotoSleepTimeout = 60 * 5;
+    gotoSleepAt = Number.MAX_SAFE_INTEGER;
+
+    constructor(private bus: i2c.PromisifiedBus) {
+        super();
+    }
 
     public async initialize() {
         console.time(chalk.green("Setup GPIO driver"));
@@ -65,13 +122,13 @@ export class CocktailMachine {
         console.timeEnd(chalk.green("Setup PWM driver"));
 
         console.time(chalk.green("Setup GPIO expander driver 24v"));
-        this.relay24v = new PCF8575Driver(this.bus, 32);
+        this._relay24v = new PCF8575Driver(this.bus, 32);
         console.timeEnd(chalk.green("Setup GPIO expander driver 24v"));
 
         console.time(chalk.green("Setup GPIO expander driver 12v"));
-        this.relay12v = new PCF8575Driver(this.bus, 33);
+        this._relay12v = new PCF8575Driver(this.bus, 33);
         console.timeEnd(chalk.green("Setup GPIO expander driver 12v"));
-        this.relays = new RelayDriver([this.relay12v, this.relay24v]);
+        this.relays = new RelayDriver([this._relay12v, this._relay24v]);
         await this.relays.clearAll();
 
         // console.time(chalk.green("Setup ADS driver"));
@@ -87,21 +144,14 @@ export class CocktailMachine {
         void this.eventLoop();
     }
 
-    private getButtonForState(state: State) {
-        switch (state) {
-            case State.COLD_WATER:
-                return BUTTON_COLD_WATER;
-            case State.SPARKLING_WATER:
-                return BUTTON_SPARKLING_WATER;
-            case State.ROOM_TEMP_WATER:
-                return BUTTON_ROOM_TEMP_WATER;
-            case State.SODA:
-                return BUTTON_SODA;
+    public setOutputs(outputs: Output[]) {
+        this.outputs = outputs;
+    }
 
-            default:
-            case State.IDLE:
-                throw new Error("No button for state " + state);
-        }
+    private getOutputById(id: number) {
+        const output = this.outputs.find((e) => e.id === id);
+        if (!output) throw new Error("Output with id not found " + id);
+        return output;
     }
 
     private async ledDriverLoop() {
@@ -110,28 +160,58 @@ export class CocktailMachine {
         while (true) {
             const now = new Date().getTime();
             try {
-                switch (state) {
+                switch (this.state) {
                     case State.IDLE: {
                         for (let i = 0; i < BUTTON_PINS.length; i++) {
-                            let value = Math.sin(now / 500 + i * 0.7) / 2 + 0.5;
-                            await this.led.setDutyCycle(i, value);
+                            await this.led.setDutyCycle(i, interactableLedAnimation(now + 100 * i));
                         }
                         break;
                     }
 
-                    case State.SPARKLING_WATER:
-                    case State.ROOM_TEMP_WATER:
-                    case State.SODA:
-                    case State.COLD_WATER: {
+                    case State.SLEEP: {
+                        for (let i = 0; i < BUTTON_PINS.length; i++) {
+                            await this.led.setDutyCycle(i, disabledLedAnimation(now));
+                        }
+                        break;
+                    }
+
+                    case State.BEFORE_DISPENSE: {
+                        for (let i = 0; i < BUTTON_PINS.length; i++) {
+                            if (i === WHITE_BUTTON || i == RED_BUTTON) {
+                                await this.led.setDutyCycle(i, interactableLedAnimation(now));
+                            } else {
+                                await this.led.setDutyCycle(i, inactiveLedAnimation(now));
+                            }
+                        }
+                        break;
+                    }
+
+                    case State.DISPENSE: {
                         for (let i = 0; i < BUTTON_PINS.length; i++) {
                             let value = Math.sin(now / 100) / 2 + 0.5;
-                            if (i == this.getButtonForState(state)) {
-                                await this.led.setDutyCycle(i, value);
-                            } else if (this.stopWaterWastingAt === Number.MAX_SAFE_INTEGER && i == BUTTON_DISPENSE) {
-                                await this.led.setDutyCycle(i, 1);
+                            if (i === WHITE_BUTTON) {
+                                await this.led.setDutyCycle(i, activeLedAnimation(now));
                             } else {
-                                await this.led.setDutyCycle(i, 0);
+                                await this.led.setDutyCycle(i, inactiveLedAnimation(now));
                             }
+                        }
+                        break;
+                    }
+
+                    case State.AFTER_DISPENSE: {
+                        for (let i = 0; i < BUTTON_PINS.length; i++) {
+                            if (i === GREEN_BUTTON || i == RED_BUTTON) {
+                                await this.led.setDutyCycle(i, interactableLedAnimation(now));
+                            } else {
+                                await this.led.setDutyCycle(i, inactiveLedAnimation(now));
+                            }
+                        }
+                        break;
+                    }
+
+                    case State.CLEAN: {
+                        for (let i = 0; i < BUTTON_PINS.length; i++) {
+                            await this.led.setDutyCycle(i, disabledLedAnimation(now));
                         }
                         break;
                     }
@@ -159,46 +239,58 @@ export class CocktailMachine {
         }
     }
 
+    // cleanOutputs(indices: number[]) {
+    //     this.currentlyCleaningOutputIndex
+    //     this.transitionState()
+    // }
+
     private async transitionState(newState: State) {
         console.log(chalk.bold(chalk.cyan(`Transition to ${State[newState]}`)));
 
-        const now = new Date().getTime();
+        const time = new Date().getTime() / 1000;
         try {
+            if (this.state == State.CLEAN) {
+                this.nextCleanAt = time + this.idleCleanInterval;
+            }
+            this.gotoSleepAt = time + this.gotoSleepTimeout;
+
+            await this.relays.clearAllGpio();
+
             switch (newState) {
                 case State.IDLE: {
-                    await this.relay12v.setAllGpio(0);
+                    break;
+                }
 
-                    if (state === State.SPARKLING_WATER || state === State.SODA) {
-                        await this.relay12v.setGpio(VALVE_WATER_MAIN, true);
-                        await this.relay12v.setGpio(VALVE_ROOM_TEMP_WATER, true);
-                        this.stopWaterWastingAt = now + 1500;
+                case State.SLEEP: {
+                    break;
+                }
+
+                case State.CLEAN: {
+                    this.currentlyCleaningOutput = null;
+
+                    for (const output of this.outputs) {
+                        if (output.settings.requiredWhenCleaning ?? false) {
+                            await this.relays.setGpio(output.index, true);
+                            this.dirtyOutputs.delete(output);
+                        }
                     }
 
+                    this.cleanNextOutputAt = 1000;
                     break;
                 }
 
-                case State.SODA:
-                case State.SPARKLING_WATER: {
-                    await this.relay12v.setGpio(VALVE_SPARKLING_WATER, true);
-                    await this.relay12v.setGpio(VALVE_WATER_MAIN, true);
+                case State.DISPENSE: {
+                    for (const output of this.outputs) {
+                        if (output.settings.requiredWhenDispensing ?? false) {
+                            await this.relays.setGpio(output.index, true);
+                        }
+                    }
 
-                    this.stopWaterWastingAt = now + 700;
+                    this.dispenseSequenceIndex = -1;
                     break;
                 }
 
-                case State.COLD_WATER: {
-                    await this.relay12v.setGpio(VALVE_COLD_WATER, true);
-                    await this.relay12v.setGpio(VALVE_WATER_MAIN, true);
-
-                    this.stopWaterWastingAt = now + 700;
-                    break;
-                }
-
-                case State.ROOM_TEMP_WATER: {
-                    await this.relay12v.setGpio(VALVE_ROOM_TEMP_WATER, true);
-                    await this.relay12v.setGpio(VALVE_WATER_MAIN, true);
-
-                    this.stopWaterWastingAt = now + 700;
+                case State.AFTER_DISPENSE: {
                     break;
                 }
 
@@ -208,11 +300,17 @@ export class CocktailMachine {
                 }
             }
 
-            state = newState;
+            this.state = newState;
         } catch (ex) {
             console.error(chalk.bold(chalk.red(`Could not transition to ${State[newState]}`, ex)));
         }
     }
+
+    // public dispenseIngredients(ingr: RecipeIngredient[]) {
+    //     ingr[0].ingredient;
+    // }
+
+    lastEventLoopTimeMs = new Date().getTime();
 
     private async eventLoop() {
         console.log(chalk.green("Event loop started"));
@@ -221,146 +319,177 @@ export class CocktailMachine {
         let prevLiters = 0;
 
         while (true) {
-            const now = new Date().getTime();
+            const timeMs = new Date().getTime();
+            const time = timeMs / 1000;
+            const deltaTime = (timeMs - this.lastEventLoopTimeMs) / 1000;
+            this.lastEventLoopTimeMs = timeMs;
+
             try {
                 let buttonStates = BUTTON_PINS.map((e) => !digitalRead(e));
                 let changedButtons = buttonStates.map((s, i) => s !== prevButtonStates[i]);
                 buttonStates.forEach((e, i) => (prevButtonStates[i] = e));
 
+                // for (let i = 0; i < changedButtons.length; i++) {
+                //     if (changedButtons[i]) {
+                //         console.log(chalk.gray(`Button ${i} changed -> ${buttonStates[i]}`));
+                //         if (buttonStates[i]) {
+                //             this.emit("buttonPress", i);
+                //         } else {
+                //             this.emit("buttonRelease", i);
+                //         }
+                //     }
+                // }
+
                 let flow = await this.flowCounter.getCounter();
                 let liters = flow / FLOW_SENSOR_ROTATIONS_PER_LITER;
+                let deltaLiters = Math.max(liters - prevLiters, 0);
 
                 if (liters !== prevLiters) {
                     console.log(chalk.gray("Liters: %d l"), liters);
                     prevLiters = liters;
                 }
 
-                switch (state) {
+                switch (this.state) {
                     case State.IDLE: {
-                        for (let i = 0; i < changedButtons.length; i++) {
-                            if (changedButtons[i]) {
-                                console.log(chalk.gray(`Button ${i} changed -> ${buttonStates[i]}`));
+                        if (time > this.nextCleanAt) {
+                            this.isThoroughClean = false;
+                            this.transitionState(State.CLEAN);
+                            this.nextCleanAt = time + this.idleCleanInterval;
+                        }
+
+                        if (time > this.gotoSleepAt) {
+                            this.transitionState(State.SLEEP);
+                            break;
+                        }
+
+                        if (changedButtons[POWER_BUTTON] && buttonStates[POWER_BUTTON]) {
+                            this.transitionState(State.SLEEP);
+                            break;
+                        }
+
+                        break;
+                    }
+
+                    case State.SLEEP: {
+                        if (time > this.nextCleanAt) {
+                            this.isThoroughClean = false;
+                            this.transitionState(State.CLEAN);
+                            this.nextCleanAt = time + this.idleCleanInterval;
+                        }
+
+                        if (changedButtons.some((e) => e)) {
+                            this.transitionState(State.IDLE);
+                            break;
+                        }
+
+                        break;
+                    }
+
+                    case State.CLEAN: {
+                        if (time > this.cleanNextOutputAt) {
+                            if (this.currentlyCleaningOutput !== null) {
+                                await this.relays.setGpio(this.currentlyCleaningOutput.index, false);
+                            }
+
+                            if (this.dirtyOutputs.size <= 0) {
+                                // Done cleaning
+                                this.transitionState(State.IDLE);
+                                break;
+                            }
+
+                            this.currentlyCleaningOutput = Array.from(this.dirtyOutputs.values())[0];
+                            this.dirtyOutputs.delete(this.currentlyCleaningOutput);
+                            await this.relays.setGpio(this.currentlyCleaningOutput.index, true);
+
+                            const cleanOutputTime = this.isThoroughClean ? this.currentlyCleaningOutput.settings.cleanSeconds ?? 0.5 : 0.4;
+                            this.cleanNextOutputAt = time + cleanOutputTime;
+                        }
+                        break;
+                    }
+
+                    case State.BEFORE_DISPENSE: {
+                        if (changedButtons[WHITE_BUTTON] && buttonStates[WHITE_BUTTON]) {
+                            this.transitionState(State.DISPENSE);
+                            break;
+                        }
+
+                        if (changedButtons[RED_BUTTON] && buttonStates[RED_BUTTON]) {
+                            this.isThoroughClean = true;
+                            this.transitionState(State.CLEAN);
+                            break;
+                        }
+
+                        break;
+                    }
+
+                    case State.DISPENSE: {
+                        let gotoNextPart = true;
+                        if (this.dispenseSequenceIndex >= 0) {
+                            const part = this.dispenseSequence[this.dispenseSequenceIndex];
+                            for (let i = 0; i < part.outputs.length; i++) {
+                                const partOut = part.outputs[i];
+                                if (partOut.remainingMl > 0) {
+                                    gotoNextPart = false;
+
+                                    const output = this.getOutputById(partOut.outputId);
+                                    const mlPerSecond = output.settings.mlPerSecond ?? 0.01;
+                                    if (mlPerSecond === "use-counter") {
+                                        partOut.remainingMl -= deltaLiters * 1000;
+                                    } else {
+                                        partOut.remainingMl -= mlPerSecond * deltaTime;
+                                    }
+
+                                    if (partOut.remainingMl <= 0) {
+                                        await this.relays.setGpio(output.index, false);
+                                    }
+                                }
                             }
                         }
 
-                        if (changedButtons[BUTTON_COLD_WATER] && buttonStates[BUTTON_COLD_WATER]) {
-                            console.log(chalk.gray("Water button pressed, going to water state"));
-                            await this.transitionState(State.COLD_WATER);
-                            break;
+                        if (gotoNextPart) {
+                            this.dispenseSequenceIndex += 1;
+                            if (this.dispenseSequenceIndex >= this.dispenseSequence.length) {
+                                // Dispense done!
+                                this.transitionState(State.AFTER_DISPENSE);
+                                break;
+                            } else {
+                                const part = this.dispenseSequence[this.dispenseSequenceIndex];
+                                for (let i = 0; i < part.outputs.length; i++) {
+                                    const partOut = part.outputs[i];
+                                    const output = this.getOutputById(partOut.outputId);
+                                    this.dirtyOutputs.add(output);
+                                    await this.relays.setGpio(output.index, true);
+                                }
+                            }
                         }
 
-                        if (changedButtons[BUTTON_SPARKLING_WATER] && buttonStates[BUTTON_SPARKLING_WATER]) {
-                            console.log(chalk.gray("Sparkling water button pressed, going to sparkling water state"));
-                            await this.transitionState(State.SPARKLING_WATER);
+                        if (changedButtons[WHITE_BUTTON] && buttonStates[WHITE_BUTTON]) {
+                            // Cancel dispense
+                            this.transitionState(State.AFTER_DISPENSE);
                             break;
-                        }
-
-                        if (changedButtons[BUTTON_ROOM_TEMP_WATER] && buttonStates[BUTTON_ROOM_TEMP_WATER]) {
-                            console.log(chalk.gray("Room temp water button pressed, going to room temp water state"));
-                            await this.transitionState(State.ROOM_TEMP_WATER);
-                            break;
-                        }
-
-                        if (changedButtons[BUTTON_SODA] && buttonStates[BUTTON_SODA]) {
-                            console.log(chalk.gray("Soda button pressed, going to soda state"));
-                            await this.transitionState(State.SODA);
-                            break;
-                        }
-
-                        if (now >= this.stopWaterWastingAt) {
-                            console.log(chalk.gray("Stopping water wasting"));
-                            this.stopWaterWastingAt = Number.MAX_SAFE_INTEGER;
-                            await this.relay12v.setGpio(VALVE_ROOM_TEMP_WATER, false);
-                            await this.relay12v.setGpio(VALVE_WATER_MAIN, false);
                         }
 
                         break;
                     }
 
-                    case State.COLD_WATER: {
-                        if (changedButtons[BUTTON_COLD_WATER] && buttonStates[BUTTON_COLD_WATER]) {
-                            console.log(chalk.gray("Cold water button pressed, returning to idle"));
-                            await this.transitionState(State.IDLE);
+                    case State.AFTER_DISPENSE: {
+                        if (changedButtons[GREEN_BUTTON] && buttonStates[GREEN_BUTTON]) {
+                            // Dispense same recipe again
+                            this.transitionState(State.DISPENSE);
                             break;
                         }
 
-                        if (now >= this.stopWaterWastingAt) {
-                            console.log(chalk.gray("Stopping cold water wasting"));
-                            this.stopWaterWastingAt = Number.MAX_SAFE_INTEGER;
-                            await this.relay12v.setGpio(VALVE_COLD_WATER, false);
-                        }
-
-                        if (this.stopWaterWastingAt === Number.MAX_SAFE_INTEGER && changedButtons[BUTTON_DISPENSE]) {
-                            await this.relay12v.setGpio(VALVE_COLD_WATER, buttonStates[BUTTON_DISPENSE]);
-                        }
-
-                        break;
-                    }
-
-                    case State.SPARKLING_WATER: {
-                        if (changedButtons[BUTTON_SPARKLING_WATER] && buttonStates[BUTTON_SPARKLING_WATER]) {
-                            console.log(chalk.gray("Sparkling water button pressed, returning to idle"));
-                            await this.transitionState(State.IDLE);
+                        if (changedButtons[RED_BUTTON] && buttonStates[RED_BUTTON]) {
+                            // Stop
+                            this.isThoroughClean = true;
+                            this.transitionState(State.CLEAN);
                             break;
                         }
-
-                        if (now >= this.stopWaterWastingAt) {
-                            console.log(chalk.gray("Stopping sparkling water wasting"));
-                            this.stopWaterWastingAt = Number.MAX_SAFE_INTEGER;
-                            await this.relay12v.setGpio(VALVE_SPARKLING_WATER, false);
-                        }
-
-                        if (this.stopWaterWastingAt === Number.MAX_SAFE_INTEGER && changedButtons[BUTTON_DISPENSE]) {
-                            await this.relay12v.setGpio(VALVE_SPARKLING_WATER, buttonStates[BUTTON_DISPENSE]);
-                        }
-
-                        break;
-                    }
-
-                    case State.ROOM_TEMP_WATER: {
-                        if (changedButtons[BUTTON_ROOM_TEMP_WATER] && buttonStates[BUTTON_ROOM_TEMP_WATER]) {
-                            console.log(chalk.gray("Sparkling water button pressed, returning to idle"));
-                            await this.transitionState(State.IDLE);
-                            break;
-                        }
-
-                        if (now >= this.stopWaterWastingAt) {
-                            console.log(chalk.gray("Stopping room temp water wasting"));
-                            this.stopWaterWastingAt = Number.MAX_SAFE_INTEGER;
-                            await this.relay12v.setGpio(VALVE_ROOM_TEMP_WATER, false);
-                        }
-
-                        if (this.stopWaterWastingAt === Number.MAX_SAFE_INTEGER && changedButtons[BUTTON_DISPENSE]) {
-                            await this.relay12v.setGpio(VALVE_ROOM_TEMP_WATER, buttonStates[BUTTON_DISPENSE]);
-                        }
-
-                        break;
-                    }
-
-                    case State.SODA: {
-                        if (changedButtons[BUTTON_SODA] && buttonStates[BUTTON_SODA]) {
-                            console.log(chalk.gray("Soda button pressed, returning to idle"));
-                            await this.transitionState(State.IDLE);
-                            break;
-                        }
-
-                        if (now >= this.stopWaterWastingAt) {
-                            console.log(chalk.gray("Stopping sparkling water wasting"));
-                            this.stopWaterWastingAt = Number.MAX_SAFE_INTEGER;
-                            await this.relay12v.setGpio(VALVE_SPARKLING_WATER, false);
-                        }
-
-                        if (this.stopWaterWastingAt === Number.MAX_SAFE_INTEGER && changedButtons[BUTTON_DISPENSE]) {
-                            await this.relay12v.setGpio(VALVE_SPARKLING_WATER, buttonStates[BUTTON_DISPENSE]);
-                            // await this.relay.setGpio(PUMP_1, buttonStates[BUTTON_DISPENSE]);
-                            await this.relay24v.setGpio(8, buttonStates[BUTTON_DISPENSE]);
-                        }
-
                         break;
                     }
 
                     default: {
-                        console.warn(chalk.red(`No tick implemented for ${state}`));
+                        console.warn(chalk.red(`No tick implemented for ${this.state}`));
                         break;
                     }
                 }

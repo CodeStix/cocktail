@@ -62,6 +62,11 @@ app.patch("/api/recipes/:id", json(), async (req, res) => {
     res.json(await updateRecipe(parseInt(req.params.id), req.body));
 });
 
+app.post("/api/recipes/:id/dispense", json(), async (req, res) => {
+    const id = parseInt(req.params.id);
+    res.json({});
+});
+
 app.post("/api/recipes", json(), async (req, res) => {
     res.json(await createRecipe());
 });

@@ -50,7 +50,8 @@ model Ingredient {
 
 model Output {
   id                Int          @id @default(autoincrement())
-  index             Int
+  index             Int          @unique
   name              String
   usedInIngredients Ingredient[]
+  settings          String       @default("{}")
 }

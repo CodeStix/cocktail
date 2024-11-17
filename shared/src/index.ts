@@ -9,10 +9,22 @@ export type Recipe = {
 };
 
 export type RecipeIngredient = {
-    ingredient: Omit<Ingredient, "output"> | null;
-    ingredientId: number | null;
+    ingredient?: Ingredient;
+    ingredientId?: number;
     order: number;
     amount: number;
+};
+
+export type OutputSettings = {
+    // type: "pump" | "valve" | "other";
+    // Flow rate if applicable
+    mlPerSecond?: number | "use-counter";
+    // Amount of seconds needed to properly clean
+    cleanSeconds?: number;
+    // When true, output will be constantly on during the whole cleaning procedure
+    requiredWhenCleaning?: boolean;
+    // When true, output will be constantly on during dispensing
+    requiredWhenDispensing?: boolean;
 };
 
 export type Output = {
@@ -20,18 +32,19 @@ export type Output = {
     index: number;
     name: string;
     enabled?: boolean;
+    settings: OutputSettings;
 };
 
 export type Ingredient = {
     id: number;
     name: string;
     imageUrl: string | null;
-    output: {
+    output?: {
         id: number;
         name: string;
         index: number;
     } | null;
-    outputId: number | null;
+    outputId?: number | null;
     remainingAmount: number;
     originalAmount: number;
     inFridge: boolean;
@@ -44,10 +57,16 @@ export type Ingredient = {
     themeColor: string;
 };
 
-export type ClientMessage = {
-    type: "all-outputs";
-    outputs: Output[];
-};
+export type ClientMessage =
+    | {
+          type: "all-outputs";
+          outputs: Output[];
+      }
+    | {
+          type: "dispense-progress";
+          progress: number;
+          status: string;
+      };
 
 // export type PatchIngredientRequest = {
 //     id: number;

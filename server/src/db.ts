@@ -1,6 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import chalk from "chalk";
-import { Ingredient, Output, Recipe } from "cocktail-shared";
+import { Ingredient, Output, OutputSettings, Recipe } from "cocktail-shared";
 
 export const database = new PrismaClient();
 
@@ -8,7 +8,15 @@ let cachedOutputs: Output[] | null = null;
 
 export async function getAllOutputs(): Promise<Output[]> {
     if (cachedOutputs == null) {
-        cachedOutputs = await database.output.findMany();
+        cachedOutputs = [];
+        for (const out of await database.output.findMany()) {
+            cachedOutputs.push({
+                id: out.id,
+                index: out.index,
+                name: out.name,
+                settings: JSON.parse(out.settings),
+            });
+        }
     }
     return cachedOutputs;
 }
@@ -38,15 +46,24 @@ export async function insertDefaultOutputs() {
     cachedOutputs = null;
 }
 
-export async function updateOutput(id: number, values: { name?: string; index?: number }): Promise<Output> {
+export async function updateOutput(id: number, values: { name?: string; index?: number; settings?: OutputSettings }): Promise<Output> {
     const newOutput = await database.output.update({
         where: {
             id: id,
         },
-        data: values,
+        data: {
+            name: values.name,
+            index: values.index,
+            settings: values.settings ? JSON.stringify(values.settings) : undefined,
+        },
     });
     cachedOutputs = null;
-    return newOutput;
+    return {
+        id: newOutput.id,
+        name: newOutput.name,
+        index: newOutput.index,
+        settings: JSON.parse(newOutput.settings),
+    };
 }
 
 export async function getIngredients(): Promise<Ingredient[]> {

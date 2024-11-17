@@ -125,4 +125,10 @@ export class RelayDriver extends EventEmitter {
             await driver.setAllGpio(num);
         }
     }
+
+    async clearAllGpio(): Promise<void> {
+        for (let driver of this.drivers) {
+            await driver.setAllGpio(0);
+        }
+    }
 }

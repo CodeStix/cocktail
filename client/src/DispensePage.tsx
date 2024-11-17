@@ -1,6 +1,6 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { SERVER_URL, SERVER_WS_URL, fetchJson, fetcher } from "./util";
-import { ClientMessage, Output, Recipe } from "cocktail-shared";
+import { ClientMessage, Recipe } from "cocktail-shared";
 import useSWR from "swr";
 import { Box, Flex, Text } from "@radix-ui/themes";
 import React, { useEffect, useRef, useState } from "react";
@@ -74,16 +74,16 @@ export function DispensePage() {
     useEffect(() => {
         if (!lastJsonMessage) return;
 
-        if (lastJsonMessage.type == "status-update") {
-            if (lastJsonMessage.status === "return-to-idle") {
-                navigate("/");
-            } else {
-                const newStatus = { ...status, status: lastJsonMessage.status };
-                if (typeof lastJsonMessage.progress !== "undefined") {
-                    newStatus.progress = lastJsonMessage.progress;
-                }
+        if (lastJsonMessage.type === "dispense-progress") {
+            const newStatus = { ...status, status: lastJsonMessage.status };
+            if (typeof lastJsonMessage.progress !== "undefined") {
+                newStatus.progress = lastJsonMessage.progress;
+            }
 
-                setStatus(newStatus);
+            setStatus(newStatus);
+        } else if (lastJsonMessage.type === "state-change") {
+            if (lastJsonMessage.to === "CLEAN" || lastJsonMessage.to === "IDLE") {
+                navigate("/");
             }
         }
     }, [lastJsonMessage]);

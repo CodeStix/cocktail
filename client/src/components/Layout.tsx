@@ -1,14 +1,32 @@
-import { Box, Flex, SegmentedControl, Text } from "@radix-ui/themes";
-import { useRef, useState } from "react";
+import { Badge, Box, Flex, SegmentedControl, Text } from "@radix-ui/themes";
+import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import * as packageJson from "../../package.json";
 import Keyboard, { SimpleKeyboard } from "react-simple-keyboard";
 import { KeyboardContext } from "../KeyboardContext";
+import { ClientMessage } from "cocktail-shared";
+import useWebSocket from "react-use-websocket";
+import { SERVER_WS_URL } from "../util";
 
 export type KeyboardSettings = {
     onChange: (value: string) => void;
     hideOnEnter: boolean;
 };
+
+function StateBadge() {
+    const { lastJsonMessage } = useWebSocket<ClientMessage>(SERVER_WS_URL);
+    const [state, setState] = useState("Unknown");
+
+    useEffect(() => {
+        if (!lastJsonMessage) return;
+
+        if (lastJsonMessage.type == "state-change") {
+            setState(lastJsonMessage.to);
+        }
+    }, [lastJsonMessage]);
+
+    return <Badge>{state}</Badge>;
+}
 
 export function Layout(props: { children?: React.ReactNode }) {
     const location = useLocation();
@@ -79,7 +97,7 @@ export function Layout(props: { children?: React.ReactNode }) {
                 </Box>
                 {/* )} */}
 
-                <Flex p="2">
+                <Flex p="2" align="center" gap="2">
                     <SegmentedControl.Root size="2" value={location.pathname}>
                         <SegmentedControl.Item value="/" onClick={() => navigate("/")}>
                             Dispense
@@ -96,12 +114,13 @@ export function Layout(props: { children?: React.ReactNode }) {
                     </SegmentedControl.Root>
 
                     <Box flexGrow="1"></Box>
-                    <Flex align="center" justify="center">
-                        <Text style={{ opacity: 0.5 }}>
-                            {" "}
-                            {packageJson.name} {packageJson.version}
-                        </Text>
-                    </Flex>
+                    <StateBadge />
+                    {/* <Flex align="center" justify="center"> */}
+                    <Text style={{ opacity: 0.5 }}>
+                        {" "}
+                        {packageJson.name} {packageJson.version}
+                    </Text>
+                    {/* </Flex> */}
                 </Flex>
             </Flex>
         </Flex>

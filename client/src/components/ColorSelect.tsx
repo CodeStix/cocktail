@@ -1,4 +1,4 @@
-import { Button, Flex, IconButton } from "@radix-ui/themes";
+import { Flex, IconButton } from "@radix-ui/themes";
 
 const COLORS = [
     "gray",

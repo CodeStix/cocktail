@@ -60,8 +60,8 @@ export function EditIngredientForm(props: { ingredient: RecipeIngredient; onChan
                 </Text>
                 <Select.Root
                     required={false}
-                    value={ingr.ingredientId === null ? "" : String(ingr.ingredientId)}
-                    onValueChange={(value) => props.onChange({ ...ingr, ingredientId: value === "" ? null : parseInt(value) })}>
+                    value={ingr.ingredientId === undefined ? "" : String(ingr.ingredientId)}
+                    onValueChange={(value) => props.onChange({ ...ingr, ingredientId: value === "" ? undefined : parseInt(value) })}>
                     <Select.Trigger style={{ minWidth: "300px" }} placeholder="select output" />
                     <Select.Content>
                         {/* <Select.Item value="">Disable output</Select.Item> */}
@@ -261,8 +261,8 @@ export function EditRecipePage() {
                                             {
                                                 amount: 100,
                                                 order: 1,
-                                                ingredient: null,
-                                                ingredientId: null,
+                                                ingredient: undefined,
+                                                ingredientId: undefined,
                                             },
                                         ],
                                     });

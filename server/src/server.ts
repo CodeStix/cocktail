@@ -28,6 +28,7 @@ import { json } from "body-parser";
 import multer from "multer";
 import path from "path";
 import sharp from "sharp";
+import { execSync, spawn } from "child_process";
 
 let machine: CocktailMachine;
 
@@ -37,7 +38,14 @@ const port = 8000;
 const PUBLIC_FOLDER_PATH = path.join(__dirname, "..", "public");
 const UPLOADS_FOLDER_PATH = path.join(PUBLIC_FOLDER_PATH, "uploads");
 
-// chromium --kiosk --force-device-scale-factor=1.5 http://192.168.0.55:8000/
+function reopenChromium() {
+    // Kill all previous instances if any
+    try {
+        execSync("killall chromium-bin", {});
+    } catch {}
+    // chromium --kiosk --force-device-scale-factor=1.5 http://192.168.0.55:8000/
+    spawn("chromium", ["--kiosk", "--force-device-scale-factor=1.5", "http://localhost:8000/"], { detached: true });
+}
 
 const upload = multer({
     dest: UPLOADS_FOLDER_PATH,
@@ -174,6 +182,11 @@ app.post("/api/clean", json(), async (req, res) => {
     res.json({});
 });
 
+app.post("/api/restart", json(), async (req, res) => {
+    reopenChromium();
+    res.json({});
+});
+
 app.use(express.static(PUBLIC_FOLDER_PATH));
 
 function sendMessage(to: WebSocket, message: ClientMessage) {
@@ -306,6 +319,8 @@ async function main() {
     await insertDefaultOutputsIfNone();
 
     console.timeEnd(chalk.green("Start setup"));
+
+    reopenChromium();
 }
 
 main();

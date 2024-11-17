@@ -359,13 +359,18 @@ export class CocktailMachine extends EventEmitter {
         this.isThoroughClean = opts.isThoroughClean;
         if (opts.cleanAll) {
             const outputs = await this.getAllOutputs();
-            console.log("clean", outputs.length);
-            outputs
-                .filter((e) => e.settings.includeInFullClean ?? false)
-                .forEach((e) => console.log("clean output", e.id, e.name, JSON.stringify(e.settings)));
+            // console.log("clean", outputs.length);
+            // outputs
+            //     .filter((e) => e.settings.includeInFullClean ?? false)
+            //     .forEach((e) => console.log("clean output", e.id, e.name, JSON.stringify(e.settings)));
             outputs.filter((e) => e.settings.includeInFullClean ?? false).forEach((e) => this.dirtyOutputs.add(e));
         }
-        await this.transitionState(State.CLEAN);
+
+        if (this.dirtyOutputs.size > 0) {
+            await this.transitionState(State.CLEAN);
+        } else {
+            await this.transitionState(State.IDLE);
+        }
     }
 
     private async eventLoop() {

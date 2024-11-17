@@ -166,6 +166,14 @@ app.post("/api/upload", upload.single("file"), async (req, res) => {
     res.json({ url: "/uploads/" + req.file!.filename + ext });
 });
 
+app.post("/api/clean", json(), async (req, res) => {
+    machine.executeCommand({
+        type: "full-clean",
+        thoroughly: typeof req.body.thoroughly === "boolean" ? req.body.thoroughly : true,
+    });
+    res.json({});
+});
+
 app.use(express.static(PUBLIC_FOLDER_PATH));
 
 function sendMessage(to: WebSocket, message: ClientMessage) {

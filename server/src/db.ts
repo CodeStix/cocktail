@@ -40,7 +40,7 @@ export async function insertDefaultOutputs() {
     await database.output.createMany({
         data: new Array(32).fill(0).map((_, idx) => ({
             index: idx,
-            name: "Output " + idx,
+            name: "",
         })),
     });
     cachedOutputs = null;

@@ -66,7 +66,7 @@ function blinkingLedAnimation(time: number) {
 }
 
 function disabledLedAnimation(time: number) {
-    return 0.05;
+    return 0.04;
 }
 
 function inactiveLedAnimation(time: number) {
@@ -86,8 +86,8 @@ export type CocktailMachineCommand =
       };
 
 export class CocktailMachine extends EventEmitter {
-    idleFullCleanInterval = 30;
-    gotoSleepTimeout = 60;
+    idleFullCleanInterval = 60 * 15;
+    gotoSleepTimeout = 60 * 5;
 
     private _relay12v!: PCF8575Driver;
     private _relay24v!: PCF8575Driver;
@@ -358,7 +358,12 @@ export class CocktailMachine extends EventEmitter {
     private async transitionToClean(opts: { isThoroughClean: boolean; cleanAll: boolean }) {
         this.isThoroughClean = opts.isThoroughClean;
         if (opts.cleanAll) {
-            (await this.getAllOutputs()).filter((e) => e.settings.includeInFullClean ?? false).forEach((e) => this.dirtyOutputs.add(e));
+            const outputs = await this.getAllOutputs();
+            console.log("clean", outputs.length);
+            outputs
+                .filter((e) => e.settings.includeInFullClean ?? false)
+                .forEach((e) => console.log("clean output", e.id, e.name, JSON.stringify(e.settings)));
+            outputs.filter((e) => e.settings.includeInFullClean ?? false).forEach((e) => this.dirtyOutputs.add(e));
         }
         await this.transitionState(State.CLEAN);
     }

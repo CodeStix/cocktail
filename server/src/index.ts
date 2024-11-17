@@ -86,8 +86,8 @@ export type CocktailMachineCommand =
       };
 
 export class CocktailMachine extends EventEmitter {
-    idleFullCleanInterval = 60 * 2;
-    gotoSleepTimeout = 60 * 5;
+    idleFullCleanInterval = 30;
+    gotoSleepTimeout = 60;
 
     private _relay12v!: PCF8575Driver;
     private _relay24v!: PCF8575Driver;
@@ -115,7 +115,7 @@ export class CocktailMachine extends EventEmitter {
 
     private nextFullCleanAt = Number.MAX_SAFE_INTEGER;
     private gotoSleepAt = Number.MAX_SAFE_INTEGER;
-    private afterDispenseExitAt = Number.MAX_SAFE_INTEGER;
+    private dispenseTimeoutAt = Number.MAX_SAFE_INTEGER;
 
     private lastEventLoopTimeMs = new Date().getTime();
 
@@ -273,10 +273,9 @@ export class CocktailMachine extends EventEmitter {
 
         const time = new Date().getTime() / 1000;
         try {
-            if (this.state == State.CLEAN) {
-                this.nextFullCleanAt = time + this.idleFullCleanInterval;
+            if (this.state !== State.CLEAN && this.state !== State.IDLE) {
+                this.gotoSleepAt = time + this.gotoSleepTimeout;
             }
-            this.gotoSleepAt = time + this.gotoSleepTimeout;
 
             await this.relays.clearAllGpio();
 
@@ -304,16 +303,18 @@ export class CocktailMachine extends EventEmitter {
                 }
 
                 case State.BEFORE_DISPENSE: {
-                    this.emit("status-update", {
+                    this.emit("dispense-progress", {
                         progress: 0,
                         status: "waiting",
                     });
+
+                    this.dispenseTimeoutAt = time + 30;
 
                     break;
                 }
 
                 case State.DISPENSE: {
-                    this.emit("status-update", {
+                    this.emit("dispense-progress", {
                         progress: 0,
                         status: "dispensing",
                     });
@@ -329,11 +330,11 @@ export class CocktailMachine extends EventEmitter {
                 }
 
                 case State.AFTER_DISPENSE: {
-                    this.emit("status-update", {
+                    this.emit("dispense-progress", {
                         status: "done",
                     });
 
-                    this.afterDispenseExitAt = time + 20;
+                    this.dispenseTimeoutAt = time + 10;
                     break;
                 }
 
@@ -342,6 +343,11 @@ export class CocktailMachine extends EventEmitter {
                     break;
                 }
             }
+
+            this.emit("state-change", {
+                from: State[this.state],
+                to: State[newState],
+            });
 
             this.state = newState;
         } catch (ex) {
@@ -485,10 +491,7 @@ export class CocktailMachine extends EventEmitter {
                             break;
                         }
 
-                        if (changedButtons[RED_BUTTON] && buttonStates[RED_BUTTON]) {
-                            this.emit("status-update", {
-                                status: "return-to-idle",
-                            });
+                        if ((changedButtons[RED_BUTTON] && buttonStates[RED_BUTTON]) || time > this.dispenseTimeoutAt) {
                             await this.transitionToClean({
                                 isThoroughClean: true,
                                 cleanAll: false,
@@ -557,7 +560,7 @@ export class CocktailMachine extends EventEmitter {
                                     totalRemainingMl += part.remainingMl;
                                 }
                             }
-                            this.emit("status-update", {
+                            this.emit("dispense-progress", {
                                 progress: (totalMl - totalRemainingMl) / totalMl,
                                 status: "dispensing",
                             });
@@ -573,11 +576,8 @@ export class CocktailMachine extends EventEmitter {
                             break;
                         }
 
-                        if ((changedButtons[RED_BUTTON] && buttonStates[RED_BUTTON]) || time > this.afterDispenseExitAt) {
+                        if ((changedButtons[RED_BUTTON] && buttonStates[RED_BUTTON]) || time > this.dispenseTimeoutAt) {
                             // Stop
-                            this.emit("status-update", {
-                                status: "return-to-idle",
-                            });
                             await this.transitionToClean({
                                 isThoroughClean: true,
                                 cleanAll: false,

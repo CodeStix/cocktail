@@ -65,9 +65,14 @@ export type ClientMessage =
           outputs: Output[];
       }
     | {
-          type: "status-update";
+          type: "dispense-progress";
           progress?: number;
-          status: "dispensing" | "done" | "waiting" | "return-to-idle";
+          status: "dispensing" | "done" | "waiting";
+      }
+    | {
+          type: "state-change";
+          from: string;
+          to: string;
       };
 
 // export type PatchIngredientRequest = {

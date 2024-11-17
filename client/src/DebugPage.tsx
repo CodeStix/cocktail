@@ -20,7 +20,7 @@ import useWebSocket from "react-use-websocket";
 import { SERVER_URL, SERVER_WS_URL, fetchJson, fetcher } from "./util";
 import useSWR from "swr";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faEdit, faSave } from "@fortawesome/free-regular-svg-icons";
+import { faEdit, faSave, faTrashAlt } from "@fortawesome/free-regular-svg-icons";
 import { KeyboardContext } from "./KeyboardContext";
 import { faArrowUpFromGroundWater, faArrowsRotate, faHandHoldingDroplet, faShower, faSoap } from "@fortawesome/free-solid-svg-icons";
 
@@ -221,6 +221,11 @@ export function DebugPage() {
                                             <FontAwesomeIcon icon={faSoap} />
                                         </Badge>
                                     )}
+                                    {output.settings.enableWhenWasteFull && (
+                                        <Badge color="brown" size="2">
+                                            <FontAwesomeIcon icon={faTrashAlt} />
+                                        </Badge>
+                                    )}
                                     <Badge color="blue">
                                         <FontAwesomeIcon icon={faArrowUpFromGroundWater} />{" "}
                                         {output.settings.mlPerSecond === "use-counter" ? (
@@ -397,6 +402,26 @@ export function DebugPage() {
                                             }}
                                         />
                                         Sensor
+                                    </Flex>
+                                </Text>
+
+                                <Text as="label" size="2">
+                                    <Flex gap="2" align="center">
+                                        <Checkbox
+                                            color="blue"
+                                            checked={editOutput.settings.enableWhenWasteFull ?? false}
+                                            size="1"
+                                            onCheckedChange={(checked) =>
+                                                setEditOutput({
+                                                    ...editOutput,
+                                                    settings: {
+                                                        ...editOutput.settings,
+                                                        enableWhenWasteFull: checked === true,
+                                                    },
+                                                })
+                                            }
+                                        />{" "}
+                                        Enable when waste full
                                     </Flex>
                                 </Text>
                             </Flex>

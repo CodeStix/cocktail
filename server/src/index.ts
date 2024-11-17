@@ -115,6 +115,7 @@ export class CocktailMachine extends EventEmitter {
 
     private nextFullCleanAt = Number.MAX_SAFE_INTEGER;
     private gotoSleepAt = Number.MAX_SAFE_INTEGER;
+    private afterDispenseExitAt = Number.MAX_SAFE_INTEGER;
 
     private lastEventLoopTimeMs = new Date().getTime();
 
@@ -332,6 +333,7 @@ export class CocktailMachine extends EventEmitter {
                         status: "done",
                     });
 
+                    this.afterDispenseExitAt = time + 20;
                     break;
                 }
 
@@ -484,6 +486,9 @@ export class CocktailMachine extends EventEmitter {
                         }
 
                         if (changedButtons[RED_BUTTON] && buttonStates[RED_BUTTON]) {
+                            this.emit("status-update", {
+                                status: "return-to-idle",
+                            });
                             await this.transitionToClean({
                                 isThoroughClean: true,
                                 cleanAll: false,
@@ -568,8 +573,11 @@ export class CocktailMachine extends EventEmitter {
                             break;
                         }
 
-                        if (changedButtons[RED_BUTTON] && buttonStates[RED_BUTTON]) {
+                        if ((changedButtons[RED_BUTTON] && buttonStates[RED_BUTTON]) || time > this.afterDispenseExitAt) {
                             // Stop
+                            this.emit("status-update", {
+                                status: "return-to-idle",
+                            });
                             await this.transitionToClean({
                                 isThoroughClean: true,
                                 cleanAll: false,

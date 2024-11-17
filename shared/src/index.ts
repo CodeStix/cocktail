@@ -67,7 +67,7 @@ export type ClientMessage =
     | {
           type: "status-update";
           progress?: number;
-          status: string;
+          status: "dispensing" | "done" | "waiting" | "return-to-idle";
       };
 
 // export type PatchIngredientRequest = {

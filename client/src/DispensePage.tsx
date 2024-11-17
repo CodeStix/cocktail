@@ -5,6 +5,8 @@ import useSWR from "swr";
 import { Box, Flex, Text } from "@radix-ui/themes";
 import React, { useEffect, useRef, useState } from "react";
 import useWebSocket from "react-use-websocket";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faLongArrowAltDown } from "@fortawesome/free-solid-svg-icons";
 
 function Contents(props: { style?: React.CSSProperties; recipeNameColor: string; recipe: Recipe; status: { status: string; progress?: number } }) {
     return (
@@ -18,15 +20,20 @@ function Contents(props: { style?: React.CSSProperties; recipeNameColor: string;
             left="0"
             width="100%"
             height="100%">
-            <Text size="7" weight="bold" style={{ maxWidth: "500px", textAlign: "center" }}>
+            <Text size="7" weight="bold" style={{ maxWidth: "600px", textAlign: "center" }}>
                 {props.status.status === "waiting" ? (
                     <>
-                        Press start to dispense your{" "}
-                        <Text as="span" style={{ color: props.recipeNameColor }}>
-                            {props.recipe.name}
-                        </Text>
-                        <Text size="2" as="p" style={{ opacity: 0.5 }} mt="2">
+                        {/* <Text size="2" as="p" style={{ opacity: 0.5 }} mt="2">
                             Place your cup under the nozzle and press start.
+                        </Text> */}
+                        <Text as="p">
+                            Place your cup & press start to mix{" "}
+                            <Text as="span" style={{ color: props.recipeNameColor }}>
+                                {props.recipe.name}
+                            </Text>
+                        </Text>
+                        <Text className="up-down-animation" as="p" size="9" mt="3">
+                            <FontAwesomeIcon icon={faLongArrowAltDown} />
                         </Text>
                     </>
                 ) : props.status.status === "dispensing" ? (

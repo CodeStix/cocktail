@@ -15,14 +15,14 @@ import {
     TextField,
 } from "@radix-ui/themes";
 import { ClientMessage, Output } from "cocktail-shared";
-import React, { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import useWebSocket from "react-use-websocket";
 import { SERVER_URL, SERVER_WS_URL, fetchJson, fetcher } from "./util";
 import useSWR from "swr";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faEdit, faSave } from "@fortawesome/free-regular-svg-icons";
 import { KeyboardContext } from "./KeyboardContext";
-import { faArrowUpFromGroundWater, faHandHoldingDroplet, faShower, faSoap, faSprayCanSparkles } from "@fortawesome/free-solid-svg-icons";
+import { faArrowUpFromGroundWater, faArrowsRotate, faHandHoldingDroplet, faShower, faSoap } from "@fortawesome/free-solid-svg-icons";
 
 // const DebugPageOutputSelect = React.memo(
 //     (props: { output: Output; onChange: (newOutputIndex: number) => void }) => {
@@ -99,6 +99,15 @@ export function DebugPage() {
         }
     }
 
+    async function performRestart() {
+        setSubmitting(true);
+        try {
+            await fetchJson("/api/restart", "POST");
+        } finally {
+            setSubmitting(false);
+        }
+    }
+
     function secondsToCleanChangeHandler(value: string) {
         setCleanSecondsStr(value);
         keyboard.setValue(value);
@@ -153,6 +162,10 @@ export function DebugPage() {
                 </Button>
                 <Button color="blue" variant="outline" disabled={submitting} onClick={() => performClean(false)}>
                     <FontAwesomeIcon icon={faShower} /> Perform full clean (fast)
+                </Button>
+                <Separator mx="3" orientation="vertical" style={{ height: "100%" }} />
+                <Button color="red" disabled={submitting} onClick={() => performRestart()}>
+                    <FontAwesomeIcon icon={faArrowsRotate} /> Restart UI
                 </Button>
             </Flex>
 

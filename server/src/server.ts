@@ -95,7 +95,7 @@ app.post("/api/recipes/:id/dispense", json(), async (req, res) => {
 
     machine.executeCommand({
         type: "prepare-dispense",
-        dispenseSequence: sequence,
+        dispenseSequence: sequence.filter((e) => !!e),
     });
     res.json({});
 });
@@ -275,12 +275,12 @@ async function main() {
         });
     });
 
-    machine.on("dispense-progress", (progress: number, status: string) => {
+    machine.on("status-update", (data: { progress?: number; status: string }) => {
         socketServer.clients.forEach(async (c) => {
             sendMessage(c, {
-                type: "dispense-progress",
-                progress: progress,
-                status: status,
+                type: "status-update",
+                status: data.status,
+                progress: data.progress,
             });
         });
     });

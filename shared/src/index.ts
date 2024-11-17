@@ -65,8 +65,8 @@ export type ClientMessage =
           outputs: Output[];
       }
     | {
-          type: "dispense-progress";
-          progress: number;
+          type: "status-update";
+          progress?: number;
           status: string;
       };
 

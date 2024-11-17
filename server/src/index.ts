@@ -186,7 +186,7 @@ export class CocktailMachine extends EventEmitter {
                 switch (this.state) {
                     case State.IDLE: {
                         for (let i = 0; i < BUTTON_PINS.length; i++) {
-                            await this.led.setDutyCycle(i, interactableLedAnimation(timeMs + 100 * i));
+                            await this.led.setDutyCycle(i, interactableLedAnimation(timeMs + 200 * i));
                         }
                         break;
                     }
@@ -303,10 +303,20 @@ export class CocktailMachine extends EventEmitter {
                 }
 
                 case State.BEFORE_DISPENSE: {
+                    this.emit("status-update", {
+                        progress: 0,
+                        status: "waiting",
+                    });
+
                     break;
                 }
 
                 case State.DISPENSE: {
+                    this.emit("status-update", {
+                        progress: 0,
+                        status: "dispensing",
+                    });
+
                     for (const output of await this.getAllOutputs()) {
                         if (output.settings.requiredWhenDispensing ?? false) {
                             await this.relays.setGpio(output.index, true);
@@ -318,6 +328,10 @@ export class CocktailMachine extends EventEmitter {
                 }
 
                 case State.AFTER_DISPENSE: {
+                    this.emit("status-update", {
+                        status: "done",
+                    });
+
                     break;
                 }
 
@@ -401,6 +415,8 @@ export class CocktailMachine extends EventEmitter {
 
                         if (this.commandQueue.length > 0) {
                             const cmd = this.commandQueue.shift()!;
+                            this.commandQueue = [];
+                            console.log("cmd", cmd);
                             switch (cmd.type) {
                                 case "prepare-dispense": {
                                     this.dispenseSequence = cmd.dispenseSequence;
@@ -481,14 +497,16 @@ export class CocktailMachine extends EventEmitter {
                     case State.DISPENSE: {
                         let gotoNextPart = true;
                         if (this.dispenseSequenceIndex >= 0) {
+                            console.log("Part", this.dispenseSequenceIndex);
                             const part = this.dispenseSequence[this.dispenseSequenceIndex];
                             for (let i = 0; i < part.outputs.length; i++) {
                                 const partOut = part.outputs[i];
+                                console.log("Part out", partOut.outputId, partOut.remainingMl, partOut.startingMl);
                                 if (partOut.remainingMl > 0) {
                                     gotoNextPart = false;
 
                                     const output = await this.getOutputById(partOut.outputId);
-                                    const mlPerSecond = output.settings.mlPerSecond ?? 0.01;
+                                    const mlPerSecond = output.settings.mlPerSecond ?? 10;
                                     if (mlPerSecond === "use-counter") {
                                         partOut.remainingMl -= deltaLiters * 1000;
                                     } else {
@@ -534,7 +552,10 @@ export class CocktailMachine extends EventEmitter {
                                     totalRemainingMl += part.remainingMl;
                                 }
                             }
-                            this.emit("dispense-progress", (totalMl - totalRemainingMl) / totalMl, "Dispensing");
+                            this.emit("status-update", {
+                                progress: (totalMl - totalRemainingMl) / totalMl,
+                                status: "dispensing",
+                            });
                         }
 
                         break;
@@ -543,7 +564,7 @@ export class CocktailMachine extends EventEmitter {
                     case State.AFTER_DISPENSE: {
                         if (changedButtons[GREEN_BUTTON] && buttonStates[GREEN_BUTTON]) {
                             // Dispense same recipe again
-                            await this.transitionState(State.DISPENSE);
+                            await this.transitionState(State.BEFORE_DISPENSE);
                             break;
                         }
 

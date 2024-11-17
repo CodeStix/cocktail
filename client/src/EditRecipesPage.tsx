@@ -27,6 +27,15 @@ export function EditRecipesPage() {
                     New
                 </Button>
             </Flex>
+            <Flex gap="2" wrap="wrap">
+                {(recipes ?? [])
+                    .filter((e) => e.shown)
+                    .map((e) => (
+                        <Button color={e.themeColor as any} variant="soft" onClick={() => navigate("/recipe/" + e.id)}>
+                            {e.name}
+                        </Button>
+                    ))}
+            </Flex>
             <Flex style={{ alignContent: "start" }} display="flex" flexGrow="1" wrap="wrap" gap="3">
                 {recipes?.map((recipe) => (
                     <RecipeCard recipe={recipe} key={recipe.id} onClick={() => navigate("/recipe/" + recipe.id)}>

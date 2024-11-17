@@ -267,11 +267,13 @@ export function EditIngredientPage() {
                             <Select.Trigger placeholder="select output" style={{ minWidth: "300px" }} />
                             <Select.Content>
                                 {/* <Select.Item value="">Disable output</Select.Item> */}
-                                {outputs?.map((output) => (
-                                    <Select.Item key={output.id} value={String(output.id)}>
-                                        {output.name}
-                                    </Select.Item>
-                                ))}
+                                {(outputs ?? [])
+                                    .filter((e) => !!e.name)
+                                    .map((output) => (
+                                        <Select.Item key={output.id} value={String(output.id)}>
+                                            {output.name}
+                                        </Select.Item>
+                                    ))}
                             </Select.Content>
                         </Select.Root>
                     </label>

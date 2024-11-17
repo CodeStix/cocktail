@@ -109,7 +109,7 @@ export function Layout(props: { children?: React.ReactNode }) {
                             Inventory
                         </SegmentedControl.Item>
                         <SegmentedControl.Item value="/debug" onClick={() => navigate("/debug")}>
-                            Outputs
+                            Advanced
                         </SegmentedControl.Item>
                     </SegmentedControl.Root>
 

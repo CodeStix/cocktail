@@ -55,7 +55,7 @@ enum State {
 // }
 
 function interactableLedAnimation(time: number) {
-    return Math.sin(time / 250) / 4 + 0.75;
+    return Math.sin(time / 250) / 3 + 0.66;
 }
 
 function activeLedAnimation(time: number) {
@@ -67,7 +67,7 @@ function blinkingLedAnimation(time: number) {
 }
 
 function disabledLedAnimation(time: number) {
-    return 0.04;
+    return 0.01;
 }
 
 function inactiveLedAnimation(time: number) {
@@ -89,7 +89,7 @@ export type CocktailMachineCommand =
 export class CocktailMachine extends EventEmitter {
     idleFullCleanInterval = 60 * 15;
     gotoSleepTimeout = 60 * 5;
-    pumpWasteTime = 15;
+    pumpWasteTime = 8;
 
     private _relay12v!: PCF8575Driver;
     private _relay24v!: PCF8575Driver;
@@ -395,8 +395,17 @@ export class CocktailMachine extends EventEmitter {
                 let changedButtons = buttonStates.map((s, i) => s !== prevButtonStates[i]);
                 buttonStates.forEach((e, i) => (prevButtonStates[i] = e));
 
+                // if (digitalRead(WASTE_DETECTOR_PIN)) {
+                //     if (this.wasteFullDetectedTime === 0) {
+                //         console.log("Waste was detected for the first time");
+                //     }
+                //     this.wasteFullDetectedTime += deltaTime;
+                // } else {
+                //     this.wasteFullDetectedTime = 0;
+                // }
+
                 if (digitalRead(WASTE_DETECTOR_PIN) && this.stopPumpingWasteAt === Number.MAX_SAFE_INTEGER) {
-                    console.log("Start pumping waste!");
+                    console.log(chalk.magenta("Start pumping waste!"));
                     this.stopPumpingWasteAt = time + this.pumpWasteTime;
 
                     for (const output of (await this.getAllOutputs()).filter((e) => e.settings.enableWhenWasteFull ?? false)) {
@@ -405,7 +414,7 @@ export class CocktailMachine extends EventEmitter {
                 }
 
                 if (time > this.stopPumpingWasteAt) {
-                    console.log("Stop pumping waste!");
+                    console.log(chalk.magenta("Stop pumping waste!"));
                     this.stopPumpingWasteAt = Number.MAX_SAFE_INTEGER;
 
                     for (const output of (await this.getAllOutputs()).filter((e) => e.settings.enableWhenWasteFull ?? false)) {
@@ -457,7 +466,7 @@ export class CocktailMachine extends EventEmitter {
                         if (this.commandQueue.length > 0) {
                             const cmd = this.commandQueue.shift()!;
                             this.commandQueue = [];
-                            console.log("cmd", cmd);
+                            console.log(chalk.green("Received command", cmd.type));
                             switch (cmd.type) {
                                 case "prepare-dispense": {
                                     this.dispenseSequence = cmd.dispenseSequence;
@@ -488,7 +497,7 @@ export class CocktailMachine extends EventEmitter {
                             break;
                         }
 
-                        if (changedButtons.some((e) => e)) {
+                        if (changedButtons.some((e) => e) && buttonStates.some((e) => e)) {
                             await this.transitionState(State.IDLE);
                             break;
                         }
@@ -538,11 +547,10 @@ export class CocktailMachine extends EventEmitter {
                     case State.DISPENSE: {
                         let gotoNextPart = true;
                         if (this.dispenseSequenceIndex >= 0) {
-                            console.log("Part", this.dispenseSequenceIndex);
                             const part = this.dispenseSequence[this.dispenseSequenceIndex];
                             for (let i = 0; i < part.outputs.length; i++) {
                                 const partOut = part.outputs[i];
-                                console.log("Part out", partOut.outputId, partOut.remainingMl, partOut.startingMl);
+                                // console.log(chalk.gray("Output remaining", partOut.outputId, partOut.remainingMl));
                                 if (partOut.remainingMl > 0) {
                                     gotoNextPart = false;
 
@@ -564,10 +572,14 @@ export class CocktailMachine extends EventEmitter {
                         if (gotoNextPart) {
                             this.dispenseSequenceIndex += 1;
                             if (this.dispenseSequenceIndex >= this.dispenseSequence.length) {
+                                console.log(chalk.gray("Dispensing is done"));
                                 // Dispense done!
                                 await this.transitionState(State.AFTER_DISPENSE);
                                 break;
                             } else {
+                                console.log(
+                                    chalk.gray("Next outputs in sequence", this.dispenseSequenceIndex + 1 + "/" + this.dispenseSequence.length)
+                                );
                                 const part = this.dispenseSequence[this.dispenseSequenceIndex];
                                 for (let i = 0; i < part.outputs.length; i++) {
                                     const partOut = part.outputs[i];

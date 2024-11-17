@@ -44,7 +44,13 @@ function reopenChromium() {
         execSync("killall chromium-bin", {});
     } catch {}
     // chromium --kiosk --force-device-scale-factor=1.5 http://192.168.0.55:8000/
-    spawn("chromium", ["--kiosk", "--force-device-scale-factor=1.5", "http://localhost:8000/"], { detached: true });
+    spawn("chromium", ["--kiosk", "--force-device-scale-factor=1.5", "http://localhost:8000/"], {
+        detached: true,
+        env: {
+            ...process.env,
+            DISPLAY: ":0",
+        },
+    });
 }
 
 const upload = multer({

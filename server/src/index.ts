@@ -8,7 +8,8 @@ import { CounterDriver } from "./counter";
 import { EventEmitter } from "events";
 import { Output } from "cocktail-shared";
 
-const BUTTON_PINS = [15, 16, 1, 6, 10, 31];
+const BUTTON_PINS = [15, 16, 1, 6, 10, 26];
+const WASTE_DETECTOR_PIN = 27;
 
 const VALVE_WATER_MAIN = 13;
 // const VALVE_WATER_WASTE = 1;
@@ -88,6 +89,7 @@ export type CocktailMachineCommand =
 export class CocktailMachine extends EventEmitter {
     idleFullCleanInterval = 60 * 15;
     gotoSleepTimeout = 60 * 5;
+    pumpWasteTime = 15;
 
     private _relay12v!: PCF8575Driver;
     private _relay24v!: PCF8575Driver;
@@ -118,6 +120,7 @@ export class CocktailMachine extends EventEmitter {
     private dispenseTimeoutAt = Number.MAX_SAFE_INTEGER;
 
     private lastEventLoopTimeMs = new Date().getTime();
+    private stopPumpingWasteAt = Number.MAX_SAFE_INTEGER;
 
     getOutputById: (id: number) => Promise<Output>;
     getAllOutputs: () => Promise<Output[]>;
@@ -142,6 +145,8 @@ export class CocktailMachine extends EventEmitter {
             pinMode(e, PinMode.INPUT);
             pullUpDnControl(e, PullUpDownMode.UP);
         });
+        pinMode(WASTE_DETECTOR_PIN, PinMode.INPUT);
+        pullUpDnControl(WASTE_DETECTOR_PIN, PullUpDownMode.UP);
         console.timeEnd(chalk.green("Setup GPIO driver"));
 
         console.time(chalk.green("Setup PWM driver"));
@@ -389,6 +394,24 @@ export class CocktailMachine extends EventEmitter {
                 let buttonStates = BUTTON_PINS.map((e) => !digitalRead(e));
                 let changedButtons = buttonStates.map((s, i) => s !== prevButtonStates[i]);
                 buttonStates.forEach((e, i) => (prevButtonStates[i] = e));
+
+                if (digitalRead(WASTE_DETECTOR_PIN) && this.stopPumpingWasteAt === Number.MAX_SAFE_INTEGER) {
+                    console.log("Start pumping waste!");
+                    this.stopPumpingWasteAt = time + this.pumpWasteTime;
+
+                    for (const output of (await this.getAllOutputs()).filter((e) => e.settings.enableWhenWasteFull ?? false)) {
+                        await this.relays.setGpio(output.index, true);
+                    }
+                }
+
+                if (time > this.stopPumpingWasteAt) {
+                    console.log("Stop pumping waste!");
+                    this.stopPumpingWasteAt = Number.MAX_SAFE_INTEGER;
+
+                    for (const output of (await this.getAllOutputs()).filter((e) => e.settings.enableWhenWasteFull ?? false)) {
+                        await this.relays.setGpio(output.index, false);
+                    }
+                }
 
                 // for (let i = 0; i < changedButtons.length; i++) {
                 //     if (changedButtons[i]) {

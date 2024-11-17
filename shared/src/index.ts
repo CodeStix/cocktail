@@ -27,6 +27,8 @@ export type OutputSettings = {
     requiredWhenDispensing?: boolean;
     // Will be included in a full-clean
     includeInFullClean?: boolean;
+    // Activate this output when waste container is full
+    enableWhenWasteFull?: boolean;
 };
 
 export type Output = {

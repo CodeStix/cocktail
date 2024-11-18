@@ -445,7 +445,7 @@ export class CocktailMachine extends EventEmitter {
 
                 if (time > this.measurePressureAt) {
                     this.lastPressureMeasurement = await this.ads.analogRead(0);
-                    this.measurePressureAt = time + 10;
+                    this.measurePressureAt = time + 0.5;
                     this.emit("pressure-measurement", this.lastPressureMeasurement);
                 }
 

@@ -91,12 +91,13 @@ app.post("/api/recipes/:id/dispense", json(), async (req, res) => {
     }
 
     for (const ingr of recipe.ingredients) {
-        if (!ingr.ingredient || typeof ingr.ingredient.outputId !== "number") {
+        console.log("Start ingr", ingr);
+        if (!ingr.ingredient || typeof ingr.ingredient.outputId !== "number" || typeof ingr.ingredientId !== "number") {
             continue;
         }
 
         const data = {
-            ingredientId: ingr.ingredient.outputId,
+            ingredientId: ingr.ingredientId,
             remainingMl: ingr.amount,
             startingMl: ingr.amount,
         };

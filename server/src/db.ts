@@ -163,17 +163,21 @@ export async function getIngredient(id: number): Promise<Ingredient | null> {
 }
 
 export async function decrementIngredientRemainingAmount(id: number, amount: number) {
-    await database.ingredient.update({
-        where: {
-            id: id,
-            infiniteAmount: false,
-        },
-        data: {
-            remainingAmount: {
-                decrement: amount,
+    try {
+        await database.ingredient.update({
+            where: {
+                id: id,
+                infiniteAmount: false,
             },
-        },
-    });
+            data: {
+                remainingAmount: {
+                    decrement: amount,
+                },
+            },
+        });
+    } catch {
+        console.warn(chalk.yellow("Ingredient decrement failed", id, amount));
+    }
 }
 
 export async function updateIngredient(id: number, data: Partial<Ingredient>): Promise<Ingredient> {

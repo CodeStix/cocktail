@@ -103,121 +103,140 @@ export function EditIngredientPage() {
                         <Switch checked={editing.inFridge} onCheckedChange={(checked) => setEditing({ ...editing, inFridge: checked })} />
                     </label>
 
-                    <Box>
+                    <label>
                         <Text as="div" size="2" mb="1" weight="bold">
-                            Original amount (ml)
+                            Infinite amount
                         </Text>
-                        <Flex align="center" gap="1">
-                            <Button
-                                variant="soft"
-                                color="red"
-                                onClick={() => setEditing({ ...editing, originalAmount: Math.max(0, editing.originalAmount - 100) })}>
-                                - 100
-                            </Button>
-                            <Button
-                                variant="soft"
-                                color="red"
-                                onClick={() => setEditing({ ...editing, originalAmount: Math.max(0, editing.originalAmount - 10) })}>
-                                - 10
-                            </Button>
-                            <TextField.Root
-                                value={originalAmountStr}
-                                onChange={(ev) => {
-                                    const str = ev.target.value;
-                                    setOriginalAmountStr(str);
+                        <Switch checked={editing.infiniteAmount} onCheckedChange={(checked) => setEditing({ ...editing, infiniteAmount: checked })} />
+                    </label>
 
-                                    const num = parseFloat(str);
-                                    if (!isNaN(num)) {
-                                        setEditing({ ...editing, originalAmount: num });
-                                    }
-                                }}>
-                                <TextField.Slot side="right">ml</TextField.Slot>
-                            </TextField.Root>
-                            <Button
-                                variant="soft"
-                                color="green"
-                                onClick={() => setEditing({ ...editing, originalAmount: editing.originalAmount + 10 })}>
-                                + 10
-                            </Button>
-                            <Button
-                                variant="soft"
-                                color="green"
-                                onClick={() => setEditing({ ...editing, originalAmount: editing.originalAmount + 100 })}>
-                                + 100
-                            </Button>
-                        </Flex>
-                    </Box>
+                    {!editing.infiniteAmount && (
+                        <Box>
+                            <Text as="div" size="2" mb="1" weight="bold">
+                                Original amount (ml)
+                            </Text>
+                            <Flex align="center" gap="1">
+                                <Button
+                                    disabled={editing.infiniteAmount}
+                                    variant="soft"
+                                    color="red"
+                                    onClick={() => setEditing({ ...editing, originalAmount: Math.max(0, editing.originalAmount - 100) })}>
+                                    - 100
+                                </Button>
+                                <Button
+                                    disabled={editing.infiniteAmount}
+                                    variant="soft"
+                                    color="red"
+                                    onClick={() => setEditing({ ...editing, originalAmount: Math.max(0, editing.originalAmount - 10) })}>
+                                    - 10
+                                </Button>
+                                <TextField.Root
+                                    disabled={editing.infiniteAmount}
+                                    value={originalAmountStr}
+                                    onChange={(ev) => {
+                                        const str = ev.target.value;
+                                        setOriginalAmountStr(str);
 
-                    <Box>
-                        <Text as="div" size="2" mb="1" weight="bold">
-                            Remaining amount (ml)
-                        </Text>
-                        <Flex align="center" gap="1">
-                            <Button
-                                variant="soft"
-                                color="red"
-                                onClick={() => setEditing({ ...editing, remainingAmount: Math.max(0, editing.remainingAmount - 100) })}>
-                                - 100
-                            </Button>
-                            <Button
-                                variant="soft"
-                                color="red"
-                                onClick={() =>
-                                    setEditing({
-                                        ...editing,
-                                        remainingAmount: Math.max(0, editing.remainingAmount - 10),
-                                    })
-                                }>
-                                - 10
-                            </Button>
-                            <TextField.Root
-                                value={remainingAmountStr}
-                                onChange={(ev) => {
-                                    const str = ev.target.value;
-                                    setRemainingAmountStr(str);
+                                        const num = parseFloat(str);
+                                        if (!isNaN(num)) {
+                                            setEditing({ ...editing, originalAmount: num });
+                                        }
+                                    }}>
+                                    <TextField.Slot side="right">ml</TextField.Slot>
+                                </TextField.Root>
+                                <Button
+                                    disabled={editing.infiniteAmount}
+                                    variant="soft"
+                                    color="green"
+                                    onClick={() => setEditing({ ...editing, originalAmount: editing.originalAmount + 10 })}>
+                                    + 10
+                                </Button>
+                                <Button
+                                    disabled={editing.infiniteAmount}
+                                    variant="soft"
+                                    color="green"
+                                    onClick={() => setEditing({ ...editing, originalAmount: editing.originalAmount + 100 })}>
+                                    + 100
+                                </Button>
+                            </Flex>
+                        </Box>
+                    )}
 
-                                    const num = parseFloat(str);
-                                    if (!isNaN(num)) {
-                                        setEditing({ ...editing, remainingAmount: num });
-                                    }
-                                }}>
-                                <TextField.Slot side="right">ml</TextField.Slot>
-                            </TextField.Root>
-                            <Button
-                                variant="soft"
-                                color="green"
-                                disabled={editing.remainingAmount >= editing.originalAmount}
-                                onClick={() =>
-                                    setEditing({
-                                        ...editing,
-                                        remainingAmount: Math.min(editing.originalAmount, editing.remainingAmount + 10),
-                                    })
-                                }>
-                                + 10
-                            </Button>
-                            <Button
-                                variant="soft"
-                                color="green"
-                                disabled={editing.remainingAmount >= editing.originalAmount}
-                                onClick={() =>
-                                    setEditing({
-                                        ...editing,
-                                        remainingAmount: Math.min(editing.originalAmount, editing.remainingAmount + 100),
-                                    })
-                                }>
-                                + 100
-                            </Button>
-                            <Button
-                                disabled={editing.remainingAmount === editing.originalAmount}
-                                onClick={() => setEditing({ ...editing, remainingAmount: editing.originalAmount })}
-                                tabIndex={-1}
-                                mt="auto"
-                                // style={{ alignSelf: "end", fontWeight: "bold" }}
-                                color="blue">
-                                Refill to {editing.originalAmount}ml
-                            </Button>
-                        </Flex>
-                    </Box>
+                    {!editing.infiniteAmount && (
+                        <Box>
+                            <Text as="div" size="2" mb="1" weight="bold">
+                                Remaining amount (ml)
+                            </Text>
+                            <Flex align="center" gap="1">
+                                <Button
+                                    disabled={editing.infiniteAmount}
+                                    variant="soft"
+                                    color="red"
+                                    onClick={() => setEditing({ ...editing, remainingAmount: Math.max(0, editing.remainingAmount - 100) })}>
+                                    - 100
+                                </Button>
+                                <Button
+                                    disabled={editing.infiniteAmount}
+                                    variant="soft"
+                                    color="red"
+                                    onClick={() =>
+                                        setEditing({
+                                            ...editing,
+                                            remainingAmount: Math.max(0, editing.remainingAmount - 10),
+                                        })
+                                    }>
+                                    - 10
+                                </Button>
+                                <TextField.Root
+                                    disabled={editing.infiniteAmount}
+                                    value={remainingAmountStr}
+                                    onChange={(ev) => {
+                                        const str = ev.target.value;
+                                        setRemainingAmountStr(str);
+
+                                        const num = parseFloat(str);
+                                        if (!isNaN(num)) {
+                                            setEditing({ ...editing, remainingAmount: num });
+                                        }
+                                    }}>
+                                    <TextField.Slot side="right">ml</TextField.Slot>
+                                </TextField.Root>
+                                <Button
+                                    variant="soft"
+                                    color="green"
+                                    disabled={editing.remainingAmount >= editing.originalAmount || editing.infiniteAmount}
+                                    onClick={() =>
+                                        setEditing({
+                                            ...editing,
+                                            remainingAmount: Math.min(editing.originalAmount, editing.remainingAmount + 10),
+                                        })
+                                    }>
+                                    + 10
+                                </Button>
+                                <Button
+                                    variant="soft"
+                                    color="green"
+                                    disabled={editing.remainingAmount >= editing.originalAmount || editing.infiniteAmount}
+                                    onClick={() =>
+                                        setEditing({
+                                            ...editing,
+                                            remainingAmount: Math.min(editing.originalAmount, editing.remainingAmount + 100),
+                                        })
+                                    }>
+                                    + 100
+                                </Button>
+                                <Button
+                                    disabled={editing.remainingAmount === editing.originalAmount || editing.infiniteAmount}
+                                    onClick={() => setEditing({ ...editing, remainingAmount: editing.originalAmount })}
+                                    tabIndex={-1}
+                                    mt="auto"
+                                    // style={{ alignSelf: "end", fontWeight: "bold" }}
+                                    color="blue">
+                                    Refill to {editing.originalAmount}ml
+                                </Button>
+                            </Flex>
+                        </Box>
+                    )}
 
                     <Box>
                         <Text as="label" size="2" mb="1" weight="bold">

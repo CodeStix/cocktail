@@ -45,17 +45,25 @@ export function IngredientCard(props: { ingredient: Ingredient; onEdit?: (ingred
 
                         {ingredient.inFridge ? (
                             <>
-                                <Box>
-                                    <Progress
-                                        color={ingredient.themeColor as any}
-                                        value={(ingredient.remainingAmount / ingredient.originalAmount) * 100}
-                                        size="2"
-                                    />
-                                </Box>
+                                {!ingredient.infiniteAmount ? (
+                                    <>
+                                        <Box>
+                                            <Progress
+                                                color={ingredient.themeColor as any}
+                                                value={(ingredient.remainingAmount / ingredient.originalAmount) * 100}
+                                                size="2"
+                                            />
+                                        </Box>
 
-                                <Text as="p" size="2">
-                                    {ingredient.remainingAmount}/{ingredient.originalAmount}ml remaining
-                                </Text>
+                                        <Text as="p" size="2">
+                                            {ingredient.remainingAmount}/{ingredient.originalAmount}ml remaining
+                                        </Text>
+                                    </>
+                                ) : (
+                                    <Box>
+                                        <Progress color={ingredient.themeColor as any} value={100} size="2" />
+                                    </Box>
+                                )}
 
                                 <Text as="p" size="2" style={{ opacity: 0.5 }}>
                                     Connected to {ingredient.output?.name ?? "(nothing)"}

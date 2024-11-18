@@ -7,6 +7,8 @@ import { KeyboardContext } from "../KeyboardContext";
 import { ClientMessage } from "cocktail-shared";
 import useWebSocket from "react-use-websocket";
 import { SERVER_WS_URL } from "../util";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faBong } from "@fortawesome/free-solid-svg-icons";
 
 export type KeyboardSettings = {
     onChange: (value: string) => void;
@@ -26,6 +28,25 @@ function StateBadge() {
     }, [lastJsonMessage]);
 
     return <Badge>{state}</Badge>;
+}
+
+function PressureBadge() {
+    const { lastJsonMessage } = useWebSocket<ClientMessage>(SERVER_WS_URL);
+    const [pressure, setPressure] = useState(0);
+
+    useEffect(() => {
+        if (!lastJsonMessage) return;
+
+        if (lastJsonMessage.type == "pressure-measurement") {
+            setPressure(lastJsonMessage.pressure);
+        }
+    }, [lastJsonMessage]);
+
+    return (
+        <Badge color="green">
+            <FontAwesomeIcon icon={faBong} /> {pressure.toFixed(3)}
+        </Badge>
+    );
 }
 
 export function Layout(props: { children?: React.ReactNode }) {
@@ -114,6 +135,7 @@ export function Layout(props: { children?: React.ReactNode }) {
                     </SegmentedControl.Root>
 
                     <Box flexGrow="1"></Box>
+                    <PressureBadge />
                     <StateBadge />
                     {/* <Flex align="center" justify="center"> */}
                     <Text style={{ opacity: 0.5 }}>

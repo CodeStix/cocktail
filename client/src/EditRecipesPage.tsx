@@ -50,10 +50,10 @@ export function EditRecipesPage() {
                     </RecipeCard>
                 )) ?? (
                     <>
-                        <Skeleton width="400px" height="126px" />
-                        <Skeleton width="400px" height="126px" />
-                        <Skeleton width="400px" height="126px" />
-                        <Skeleton width="400px" height="126px" />
+                        <Skeleton width="350px" height="126px" />
+                        <Skeleton width="350px" height="126px" />
+                        <Skeleton width="350px" height="126px" />
+                        <Skeleton width="350px" height="126px" />
                     </>
                 )}
             </Flex>

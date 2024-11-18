@@ -330,7 +330,7 @@ export function EditRecipePage() {
                 </>
             ) : (
                 <>
-                    <Skeleton width="400px" height="126px"></Skeleton>
+                    <Skeleton width="350px" height="126px"></Skeleton>
                     <Skeleton width="100%" height="61px"></Skeleton>
                     <Skeleton width="100%" height="97px"></Skeleton>
                 </>

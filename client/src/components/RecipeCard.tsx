@@ -7,7 +7,7 @@ import { faEyeSlash } from "@fortawesome/free-regular-svg-icons";
 export function RecipeCard(props: { recipe: Recipe; children?: React.ReactNode; onClick?: () => void }) {
     const recipe = props.recipe;
     return (
-        <Card style={{ width: "400px" }} asChild>
+        <Card style={{ width: "350px" }} asChild>
             <button onClick={props.onClick}>
                 <Flex gap="3">
                     <Box

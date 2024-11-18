@@ -11,6 +11,7 @@ import fs from "fs";
 import {
     createIngredient,
     createRecipe,
+    decrementIngredientRemainingAmount,
     deleteIngredient,
     deleteRecipe,
     getAllOutputs,
@@ -80,7 +81,7 @@ app.post("/api/recipes/:id/dispense", json(), async (req, res) => {
     const id = parseInt(req.params.id);
 
     const sequence: {
-        outputs: { outputId: number; startingMl: number; remainingMl: number }[];
+        ingredients: { ingredientId: number; startingMl: number; remainingMl: number }[];
     }[] = [];
 
     const recipe = await getRecipe(id);
@@ -95,15 +96,15 @@ app.post("/api/recipes/:id/dispense", json(), async (req, res) => {
         }
 
         const data = {
-            outputId: ingr.ingredient.outputId,
+            ingredientId: ingr.ingredient.outputId,
             remainingMl: ingr.amount,
             startingMl: ingr.amount,
         };
 
         if (ingr.order in sequence) {
-            sequence[ingr.order].outputs.push(data);
+            sequence[ingr.order].ingredients.push(data);
         } else {
-            sequence[ingr.order] = { outputs: [data] };
+            sequence[ingr.order] = { ingredients: [data] };
         }
     }
 
@@ -254,7 +255,7 @@ async function main() {
     console.time(chalk.green("Start setup"));
 
     let bus = await i2c.openPromisified(6);
-    machine = new CocktailMachine(bus, getOutputById, getAllOutputs);
+    machine = new CocktailMachine(bus, getIngredient, getAllOutputs);
     await machine.initialize();
 
     const server = app.listen(port, () => {
@@ -312,12 +313,33 @@ async function main() {
         });
     });
 
-    machine.on("state-change", (data: { from: string; to: string }) => {
+    machine.on("state-change", async (data: { from: string; to: string }) => {
         socketServer.clients.forEach(async (c) => {
             sendMessage(c, {
                 type: "state-change",
                 from: data.from,
                 to: data.to,
+            });
+        });
+
+        if (data.to === "AFTER_DISPENSE") {
+            const sequence = machine.getDispenseSequence();
+            console.log("Update in database", sequence);
+
+            for (const part of sequence) {
+                for (const ingr of part.ingredients) {
+                    console.log("Decrement", ingr.ingredientId, ingr.startingMl - ingr.remainingMl);
+                    await decrementIngredientRemainingAmount(ingr.ingredientId, ingr.startingMl - ingr.remainingMl);
+                }
+            }
+        }
+    });
+
+    machine.on("pressure-measurement", (pressure: number) => {
+        socketServer.clients.forEach(async (c) => {
+            sendMessage(c, {
+                type: "pressure-measurement",
+                pressure: pressure,
             });
         });
     });

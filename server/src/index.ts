@@ -6,7 +6,8 @@ import { digitalRead, digitalWrite, pinMode, PinMode, pullUpDnControl, PullUpDow
 import chalk from "chalk";
 import { CounterDriver } from "./counter";
 import { EventEmitter } from "events";
-import { Output } from "cocktail-shared";
+import { Ingredient, Output } from "cocktail-shared";
+import assert from "assert";
 
 const BUTTON_PINS = [15, 16, 1, 6, 10, 26];
 const WASTE_DETECTOR_PIN = 27;
@@ -78,7 +79,7 @@ export type CocktailMachineCommand =
     | {
           type: "prepare-dispense";
           dispenseSequence: {
-              outputs: { outputId: number; startingMl: number; remainingMl: number }[];
+              ingredients: { ingredientId: number; startingMl: number; remainingMl: number }[];
           }[];
       }
     | {
@@ -93,7 +94,7 @@ export class CocktailMachine extends EventEmitter {
 
     private _relay12v!: PCF8575Driver;
     private _relay24v!: PCF8575Driver;
-    // private ads!: ADS1115;
+    private ads!: ADS1115;
     relays!: RelayDriver;
     private led!: PCA9685Driver;
     private flowCounter!: CounterDriver;
@@ -111,7 +112,7 @@ export class CocktailMachine extends EventEmitter {
 
     // Dispense state
     private dispenseSequence!: {
-        outputs: { outputId: number; startingMl: number; remainingMl: number }[];
+        ingredients: { ingredientId: number; startingMl: number; remainingMl: number }[];
     }[];
     private dispenseSequenceIndex = 0;
 
@@ -121,13 +122,19 @@ export class CocktailMachine extends EventEmitter {
 
     private lastEventLoopTimeMs = new Date().getTime();
     private stopPumpingWasteAt = Number.MAX_SAFE_INTEGER;
+    private measurePressureAt = 0;
+    private lastPressureMeasurement = 0;
 
-    getOutputById: (id: number) => Promise<Output>;
+    getIngredientById: (id: number) => Promise<Ingredient | null>;
     getAllOutputs: () => Promise<Output[]>;
 
-    constructor(private bus: i2c.PromisifiedBus, getOutputById: (id: number) => Promise<Output>, getAllOutputs: () => Promise<Output[]>) {
+    constructor(
+        private bus: i2c.PromisifiedBus,
+        getIngredientById: (id: number) => Promise<Ingredient | null>,
+        getAllOutputs: () => Promise<Output[]>
+    ) {
         super();
-        this.getOutputById = getOutputById;
+        this.getIngredientById = getIngredientById;
         this.getAllOutputs = getAllOutputs;
 
         const time = new Date().getTime() / 1000;
@@ -164,10 +171,10 @@ export class CocktailMachine extends EventEmitter {
         this.relays = new RelayDriver([this._relay12v, this._relay24v]);
         await this.relays.clearAll();
 
-        // console.time(chalk.green("Setup ADS driver"));
-        // this.ads = new ADS1115(this.bus, 0x48);
-        // await this.ads.initialize();
-        // console.timeEnd(chalk.green("Setup ADS driver"));
+        console.time(chalk.green("Setup ADS driver"));
+        this.ads = new ADS1115(this.bus, 0x48);
+        await this.ads.initialize();
+        console.timeEnd(chalk.green("Setup ADS driver"));
 
         console.time(chalk.green("Setup flow driver"));
         this.flowCounter = new CounterDriver(this.bus, 0x33);
@@ -182,6 +189,14 @@ export class CocktailMachine extends EventEmitter {
     //     if (!output) throw new Error("Output with id not found " + id);
     //     return output;
     // }
+
+    getDispenseSequence() {
+        return this.dispenseSequence;
+    }
+
+    getLastPressureMeasurement() {
+        return this.lastPressureMeasurement;
+    }
 
     private async ledDriverLoop() {
         console.log(chalk.green("Led driver loop started"));
@@ -324,6 +339,12 @@ export class CocktailMachine extends EventEmitter {
                         status: "dispensing",
                     });
 
+                    for (const seq of this.dispenseSequence) {
+                        for (const output of seq.ingredients) {
+                            output.remainingMl = output.startingMl;
+                        }
+                    }
+
                     for (const output of await this.getAllOutputs()) {
                         if (output.settings.requiredWhenDispensing ?? false) {
                             await this.relays.setGpio(output.index, true);
@@ -422,6 +443,12 @@ export class CocktailMachine extends EventEmitter {
                     }
                 }
 
+                if (time > this.measurePressureAt) {
+                    this.lastPressureMeasurement = await this.ads.analogRead(0);
+                    this.measurePressureAt = time + 10;
+                    this.emit("pressure-measurement", this.lastPressureMeasurement);
+                }
+
                 // for (let i = 0; i < changedButtons.length; i++) {
                 //     if (changedButtons[i]) {
                 //         console.log(chalk.gray(`Button ${i} changed -> ${buttonStates[i]}`));
@@ -443,6 +470,7 @@ export class CocktailMachine extends EventEmitter {
                 }
 
                 switch (this.state) {
+                    case State.SLEEP:
                     case State.IDLE: {
                         if (time > this.nextFullCleanAt) {
                             this.nextFullCleanAt = time + this.idleFullCleanInterval;
@@ -453,14 +481,21 @@ export class CocktailMachine extends EventEmitter {
                             break;
                         }
 
-                        if (time > this.gotoSleepAt) {
-                            await this.transitionState(State.SLEEP);
-                            break;
-                        }
+                        if (this.state == State.IDLE) {
+                            if (time > this.gotoSleepAt) {
+                                await this.transitionState(State.SLEEP);
+                                break;
+                            }
 
-                        if (changedButtons[POWER_BUTTON] && buttonStates[POWER_BUTTON]) {
-                            await this.transitionState(State.SLEEP);
-                            break;
+                            if (changedButtons[POWER_BUTTON] && buttonStates[POWER_BUTTON]) {
+                                await this.transitionState(State.SLEEP);
+                                break;
+                            }
+                        } else {
+                            if (changedButtons.some((e) => e) && buttonStates.some((e) => e)) {
+                                await this.transitionState(State.IDLE);
+                                break;
+                            }
                         }
 
                         if (this.commandQueue.length > 0) {
@@ -484,26 +519,28 @@ export class CocktailMachine extends EventEmitter {
                             }
                         }
 
-                        break;
-                    }
-
-                    case State.SLEEP: {
-                        if (time > this.nextFullCleanAt) {
-                            this.nextFullCleanAt = time + this.idleFullCleanInterval;
-                            await this.transitionToClean({
-                                isThoroughClean: false,
-                                cleanAll: true,
-                            });
-                            break;
-                        }
-
-                        if (changedButtons.some((e) => e) && buttonStates.some((e) => e)) {
-                            await this.transitionState(State.IDLE);
-                            break;
-                        }
+                        // console.log("Pressure", await this.ads.analogRead(0));
 
                         break;
                     }
+
+                    // case State.SLEEP: {
+                    //     if (time > this.nextFullCleanAt) {
+                    //         this.nextFullCleanAt = time + this.idleFullCleanInterval;
+                    //         await this.transitionToClean({
+                    //             isThoroughClean: false,
+                    //             cleanAll: true,
+                    //         });
+                    //         break;
+                    //     }
+
+                    //     if (changedButtons.some((e) => e) && buttonStates.some((e) => e)) {
+                    //         await this.transitionState(State.IDLE);
+                    //         break;
+                    //     }
+
+                    //     break;
+                    // }
 
                     case State.CLEAN: {
                         if (time > this.cleanNextOutputAt) {
@@ -548,14 +585,16 @@ export class CocktailMachine extends EventEmitter {
                         let gotoNextPart = true;
                         if (this.dispenseSequenceIndex >= 0) {
                             const part = this.dispenseSequence[this.dispenseSequenceIndex];
-                            for (let i = 0; i < part.outputs.length; i++) {
-                                const partOut = part.outputs[i];
+                            for (let i = 0; i < part.ingredients.length; i++) {
+                                const partOut = part.ingredients[i];
                                 // console.log(chalk.gray("Output remaining", partOut.outputId, partOut.remainingMl));
                                 if (partOut.remainingMl > 0) {
                                     gotoNextPart = false;
 
-                                    const output = await this.getOutputById(partOut.outputId);
-                                    const mlPerSecond = output.settings.mlPerSecond ?? 10;
+                                    const ingr = await this.getIngredientById(partOut.ingredientId);
+                                    assert(ingr);
+
+                                    const mlPerSecond = ingr.output!.settings.mlPerSecond ?? 10;
                                     if (mlPerSecond === "use-counter") {
                                         partOut.remainingMl -= deltaLiters * 1000;
                                     } else {
@@ -563,7 +602,7 @@ export class CocktailMachine extends EventEmitter {
                                     }
 
                                     if (partOut.remainingMl <= 0) {
-                                        await this.relays.setGpio(output.index, false);
+                                        await this.relays.setGpio(ingr.output!.index, false);
                                     }
                                 }
                             }
@@ -581,11 +620,13 @@ export class CocktailMachine extends EventEmitter {
                                     chalk.gray("Next outputs in sequence", this.dispenseSequenceIndex + 1 + "/" + this.dispenseSequence.length)
                                 );
                                 const part = this.dispenseSequence[this.dispenseSequenceIndex];
-                                for (let i = 0; i < part.outputs.length; i++) {
-                                    const partOut = part.outputs[i];
-                                    const output = await this.getOutputById(partOut.outputId);
-                                    this.dirtyOutputs.add(output);
-                                    await this.relays.setGpio(output.index, true);
+                                for (let i = 0; i < part.ingredients.length; i++) {
+                                    const partOut = part.ingredients[i];
+                                    const ingr = await this.getIngredientById(partOut.ingredientId);
+                                    assert(ingr);
+
+                                    this.dirtyOutputs.add(ingr.output!);
+                                    await this.relays.setGpio(ingr.output!.index, true);
                                 }
                             }
                         }
@@ -600,7 +641,7 @@ export class CocktailMachine extends EventEmitter {
                             let totalMl = 0;
                             let totalRemainingMl = 0;
                             for (const output of this.dispenseSequence) {
-                                for (const part of output.outputs) {
+                                for (const part of output.ingredients) {
                                     totalMl += part.startingMl;
                                     totalRemainingMl += part.remainingMl;
                                 }

@@ -78,6 +78,7 @@ export async function getIngredients(): Promise<Ingredient[]> {
                     id: true,
                     index: true,
                     name: true,
+                    settings: true,
                 },
             },
             usedInRecipe: {
@@ -98,7 +99,15 @@ export async function getIngredients(): Promise<Ingredient[]> {
         orderBy: [{ inFridge: "desc" }, { remainingAmount: "desc" }],
     });
 
-    return ingredients;
+    return ingredients.map((ingr) => ({
+        ...ingr,
+        output: ingr.output
+            ? {
+                  ...ingr.output,
+                  settings: JSON.parse(ingr.output.settings),
+              }
+            : null,
+    }));
 }
 
 export async function getIngredient(id: number): Promise<Ingredient | null> {
@@ -116,6 +125,7 @@ export async function getIngredient(id: number): Promise<Ingredient | null> {
                     id: true,
                     index: true,
                     name: true,
+                    settings: true,
                 },
             },
             usedInRecipe: {
@@ -134,7 +144,34 @@ export async function getIngredient(id: number): Promise<Ingredient | null> {
             themeColor: true,
         },
     });
-    return ingr;
+
+    if (!ingr) {
+        return ingr;
+    }
+
+    return {
+        ...ingr,
+        output: ingr.output
+            ? {
+                  ...ingr.output,
+                  settings: JSON.parse(ingr.output.settings),
+              }
+            : null,
+    };
+}
+
+export async function decrementIngredientRemainingAmount(id: number, amount: number) {
+    await database.ingredient.update({
+        where: {
+            id: id,
+            infiniteAmount: false,
+        },
+        data: {
+            remainingAmount: {
+                decrement: amount,
+            },
+        },
+    });
 }
 
 export async function updateIngredient(id: number, data: Partial<Ingredient>): Promise<Ingredient> {

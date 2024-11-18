@@ -44,6 +44,7 @@ model Ingredient {
   usedInRecipe    RecipeIngredient[]
   remainingAmount Float
   originalAmount  Float              @default(1000)
+  infiniteAmount  Boolean            @default(false)
   inFridge        Boolean
   themeColor      String             @default("blue")
 }

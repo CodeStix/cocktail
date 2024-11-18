@@ -43,11 +43,7 @@ export type Ingredient = {
     id: number;
     name: string;
     imageUrl: string | null;
-    output?: {
-        id: number;
-        name: string;
-        index: number;
-    } | null;
+    output?: Output | null;
     outputId?: number | null;
     remainingAmount: number;
     originalAmount: number;
@@ -75,6 +71,10 @@ export type ClientMessage =
           type: "state-change";
           from: string;
           to: string;
+      }
+    | {
+          type: "pressure-measurement";
+          pressure: number;
       };
 
 // export type PatchIngredientRequest = {

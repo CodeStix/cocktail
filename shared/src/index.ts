@@ -47,6 +47,7 @@ export type Ingredient = {
     outputId?: number | null;
     remainingAmount: number;
     originalAmount: number;
+    infiniteAmount: boolean;
     inFridge: boolean;
     usedInRecipe?: {
         recipe: {

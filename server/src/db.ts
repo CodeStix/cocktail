@@ -94,6 +94,7 @@ export async function getIngredients(): Promise<Ingredient[]> {
             outputId: true,
             remainingAmount: true,
             originalAmount: true,
+            infiniteAmount: true,
             themeColor: true,
         },
         orderBy: [{ inFridge: "desc" }, { remainingAmount: "desc" }],
@@ -141,6 +142,7 @@ export async function getIngredient(id: number): Promise<Ingredient | null> {
             outputId: true,
             remainingAmount: true,
             originalAmount: true,
+            infiniteAmount: true,
             themeColor: true,
         },
     });
@@ -187,6 +189,7 @@ export async function updateIngredient(id: number, data: Partial<Ingredient>): P
             outputId: data.outputId,
             name: data.name,
             themeColor: data.themeColor,
+            infiniteAmount: data.infiniteAmount,
         },
     });
     return {
@@ -199,6 +202,7 @@ export async function updateIngredient(id: number, data: Partial<Ingredient>): P
         outputId: null,
         imageUrl: ingr.imageUrl,
         themeColor: ingr.themeColor,
+        infiniteAmount: ingr.infiniteAmount,
     };
 }
 
@@ -234,6 +238,7 @@ export async function createIngredient(): Promise<Ingredient> {
         outputId: null,
         imageUrl: ingr.imageUrl,
         themeColor: ingr.themeColor,
+        infiniteAmount: ingr.infiniteAmount,
     };
 }
 
@@ -264,6 +269,7 @@ export async function getRecipe(id: number): Promise<Recipe | null> {
                             originalAmount: true,
                             outputId: true,
                             themeColor: true,
+                            infiniteAmount: true,
                         },
                     },
                 },
@@ -296,6 +302,7 @@ export async function getRecipes(all: boolean): Promise<Recipe[]> {
                             originalAmount: true,
                             outputId: true,
                             themeColor: true,
+                            infiniteAmount: true,
                         },
                     },
                 },
@@ -348,6 +355,7 @@ export async function createRecipe(): Promise<Recipe> {
                             originalAmount: true,
                             outputId: true,
                             themeColor: true,
+                            infiniteAmount: true,
                         },
                     },
                 },
@@ -444,6 +452,7 @@ export async function updateRecipe(id: number, data: Partial<Recipe>): Promise<R
                             originalAmount: true,
                             outputId: true,
                             themeColor: true,
+                            infiniteAmount: true,
                         },
                     },
                 },

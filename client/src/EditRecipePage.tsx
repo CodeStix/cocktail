@@ -5,6 +5,7 @@ import {
     Button,
     Card,
     Flex,
+    Grid,
     Heading,
     IconButton,
     Select,
@@ -226,12 +227,23 @@ export function EditRecipePage() {
                         />
                     </label>
 
-                    <label>
-                        <Text as="div" size="2" mb="1" weight="bold">
-                            Shown
-                        </Text>
-                        <Switch checked={recipe.shown} onCheckedChange={(checked) => setRecipe({ ...recipe, shown: checked })} />
-                    </label>
+                    <Grid columns="2">
+                        <label>
+                            <Text as="div" size="2" mb="1" weight="bold">
+                                Shown
+                            </Text>
+                            <Switch checked={recipe.shown} onCheckedChange={(checked) => setRecipe({ ...recipe, shown: checked })} />
+                        </label>
+                        <label>
+                            <Text as="div" size="2" mb="1" weight="bold">
+                                Hold to dispense
+                            </Text>
+                            <Switch
+                                checked={recipe.holdToDispense}
+                                onCheckedChange={(checked) => setRecipe({ ...recipe, holdToDispense: checked })}
+                            />
+                        </label>
+                    </Grid>
 
                     <Box>
                         <Text as="div" size="2" mb="1" weight="bold">

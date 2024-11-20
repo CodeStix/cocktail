@@ -100,8 +100,6 @@ app.post("/api/recipes/:id/dispense", json(), async (req, res) => {
     const limitPartMl = adjRecipe.holdToDispense ? 50 : undefined;
     const dispenseSequence = recipeToDispenseSequence(adjRecipe, limitPartMl);
 
-    console.log("data.dispenseSequence", dispenseSequence);
-
     machine.executeCommand({
         type: "prepare-dispense",
         dispenseSequence: dispenseSequence,

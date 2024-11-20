@@ -92,7 +92,7 @@ export type CocktailMachineCommand =
 
 export class CocktailMachine extends EventEmitter {
     idleFullCleanInterval = 60 * 60;
-    afterCleanPumpTime = 1;
+    afterCleanPumpTime = 0.4;
     gotoSleepTimeout = 60 * 5;
     fastCleanSeconds = 0.25;
     pumpWasteTime = 10;

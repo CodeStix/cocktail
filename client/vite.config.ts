@@ -26,6 +26,7 @@ export default defineConfig({
         proxy: {
             "/uploads": proxyConfig,
             "/api": proxyConfig,
+            "/socket": proxyConfig,
         },
     },
 });

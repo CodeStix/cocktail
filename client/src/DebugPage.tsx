@@ -23,6 +23,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faEdit, faSave, faTrashAlt } from "@fortawesome/free-regular-svg-icons";
 import { KeyboardContext } from "./KeyboardContext";
 import { faArrowUpFromGroundWater, faArrowsRotate, faHandHoldingDroplet, faShower, faSoap } from "@fortawesome/free-solid-svg-icons";
+import * as packageJson from "../package.json";
 
 // const DebugPageOutputSelect = React.memo(
 //     (props: { output: Output; onChange: (newOutputIndex: number) => void }) => {
@@ -252,6 +253,10 @@ export function DebugPage() {
                     ))}
                 </Table.Body>
             </Table.Root>
+
+            <Text style={{ opacity: 0.5 }}>
+                {packageJson.name} {packageJson.version}
+            </Text>
 
             <Dialog.Root open={showEditOutputDialog} onOpenChange={(open) => setShowEditOutputDialog(open)}>
                 <Dialog.Content maxWidth="450px">

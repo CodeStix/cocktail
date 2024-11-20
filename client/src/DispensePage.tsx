@@ -27,8 +27,9 @@ function Contents(props: { style?: React.CSSProperties; recipeNameColor: string;
                         {/* <Text size="2" as="p" style={{ opacity: 0.5 }} mt="2">
                             Place your cup under the nozzle and press start.
                         </Text> */}
+
                         <Text as="p">
-                            Place your cup & press start to mix{" "}
+                            Place your cup & {props.recipe.holdToDispense ? "HOLD" : "press"} button to dispense{" "}
                             <Text as="span" style={{ color: props.recipeNameColor }}>
                                 {props.recipe.name}
                             </Text>
@@ -39,7 +40,7 @@ function Contents(props: { style?: React.CSSProperties; recipeNameColor: string;
                     </>
                 ) : props.status.status === "dispensing" ? (
                     <>
-                        Brewing your{" "}
+                        Dispensing your{" "}
                         <Text as="span" style={{ color: props.recipeNameColor }}>
                             {props.recipe.name}
                         </Text>
@@ -152,10 +153,10 @@ export function DispensePage() {
 		<Button>Adjust recipe</Button>
 	</Dialog.Trigger> */}
 
-                <Dialog.Content maxWidth="500px">
-                    <Dialog.Title>Adjust {recipe?.name}</Dialog.Title>
+                <Dialog.Content maxWidth="700px">
+                    <Dialog.Title>Customize {recipe?.name}</Dialog.Title>
                     <Dialog.Description size="2" mb="4">
-                        You can temporarely override settings for this drink.
+                        Customize this drink by temporarily changing its ingredients.
                     </Dialog.Description>
 
                     {recipe && (
@@ -197,6 +198,7 @@ export function DispensePage() {
                         </Dialog.Close>
                         <Dialog.Close>
                             <Button
+                                color="green"
                                 disabled={submitting}
                                 loading={submitting}
                                 onClick={async () => {

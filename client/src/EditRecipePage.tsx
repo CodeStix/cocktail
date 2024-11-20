@@ -60,9 +60,9 @@ export function EditIngredientForm(props: {
     return (
         <Flex direction="column" gap="1" position="relative">
             <Box position="absolute" top="1" right="1">
-                <Button color="red" onClick={() => props.onDelete(ingr)}>
-                    <FontAwesomeIcon icon={faTrash} /> Remove ingredient
-                </Button>
+                <IconButton size="3" color="red" onClick={() => props.onDelete(ingr)}>
+                    <FontAwesomeIcon icon={faTrash} />
+                </IconButton>
             </Box>
             <label>
                 <Text as="div" size="2" mb="1" weight="bold">
@@ -98,6 +98,7 @@ export function EditIngredientForm(props: {
                 <Flex gap="1" mt="1" wrap="wrap">
                     {[10, 20, 30, 40, 50, 75, 100, 125, 150, 200, 250, 300, 400].map((e) => (
                         <Button
+                            size="1"
                             color="blue"
                             variant="soft"
                             onClick={() =>

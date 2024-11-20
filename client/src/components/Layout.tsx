@@ -1,7 +1,6 @@
-import { Badge, Box, Flex, SegmentedControl, Text } from "@radix-ui/themes";
+import { Badge, Box, Flex, SegmentedControl } from "@radix-ui/themes";
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import * as packageJson from "../../package.json";
 import Keyboard, { SimpleKeyboard } from "react-simple-keyboard";
 import { KeyboardContext } from "../KeyboardContext";
 import { ClientMessage } from "cocktail-shared";
@@ -26,6 +25,8 @@ function StateBadge() {
             setState(lastJsonMessage.to);
         }
     }, [lastJsonMessage]);
+
+    if (state === "Unknown") return null;
 
     return <Badge>{state}</Badge>;
 }
@@ -138,10 +139,7 @@ export function Layout(props: { children?: React.ReactNode }) {
                     <PressureBadge />
                     <StateBadge />
                     {/* <Flex align="center" justify="center"> */}
-                    <Text style={{ opacity: 0.5 }}>
-                        {" "}
-                        {packageJson.name} {packageJson.version}
-                    </Text>
+
                     {/* </Flex> */}
                 </Flex>
             </Flex>

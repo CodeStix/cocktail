@@ -1,5 +1,4 @@
 export const SERVER_URL = "";
-// export const SERVER_WS_URL = "ws://192.168.0.55:8000/socket";
 export const SERVER_WS_URL = `ws://${location.host}/socket`;
 
 export const fetcher = (str: string) => fetch(str).then((e) => e.json());

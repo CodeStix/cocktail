@@ -1,5 +1,5 @@
 import express from "express";
-import { ClientMessage, ServerMessage, Ingredient } from "cocktail-shared";
+import { ClientMessage, ServerMessage, Ingredient, DispenseSequence, recipeToDispenseSequence, Recipe } from "cocktail-shared";
 import cors from "cors";
 import ws from "ws";
 import { WebSocket } from "ws";
@@ -80,38 +80,38 @@ app.patch("/api/recipes/:id", json(), async (req, res) => {
 app.post("/api/recipes/:id/dispense", json(), async (req, res) => {
     const id = parseInt(req.params.id);
 
-    const sequence: {
-        ingredients: { ingredientId: number; startingMl: number; remainingMl: number }[];
-    }[] = [];
-
     const recipe = await getRecipe(id);
     if (!recipe) {
         res.status(404).end();
         return;
     }
 
-    for (const ingr of recipe.ingredients) {
-        console.log("Start ingr", ingr);
-        if (!ingr.ingredient || typeof ingr.ingredient.outputId !== "number" || typeof ingr.ingredientId !== "number") {
-            continue;
-        }
+    const body = req.body as {
+        // holdToDispense?: boolean;
+        recipeOverride?: Partial<Recipe>;
+    };
 
-        const data = {
-            ingredientId: ingr.ingredientId,
-            remainingMl: ingr.amount,
-            startingMl: ingr.amount,
-        };
+    const adjRecipe: Recipe = {
+        ...recipe,
+        ...body.recipeOverride,
+    };
 
-        if (ingr.order in sequence) {
-            sequence[ingr.order].ingredients.push(data);
-        } else {
-            sequence[ingr.order] = { ingredients: [data] };
-        }
-    }
+    const limitPartMl = adjRecipe.holdToDispense ? 50 : undefined;
+    const dispenseSequence = recipeToDispenseSequence(adjRecipe, limitPartMl);
+
+    console.log("data.dispenseSequence", dispenseSequence);
 
     machine.executeCommand({
         type: "prepare-dispense",
-        dispenseSequence: sequence.filter((e) => !!e),
+        dispenseSequence: dispenseSequence,
+        holdToDispense: adjRecipe.holdToDispense,
+    });
+    res.json({});
+});
+
+app.delete("/api/recipes/:id/dispense", json(), async (req, res) => {
+    machine.executeCommand({
+        type: "stop-dispense",
     });
     res.json({});
 });

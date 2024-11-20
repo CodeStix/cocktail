@@ -14,13 +14,14 @@ datasource db {
 }
 
 model Recipe {
-  id          Int                @id @default(autoincrement())
-  name        String
-  description String
-  imageUrl    String?
-  themeColor  String
-  shown       Boolean            @default(true)
-  ingredients RecipeIngredient[]
+  id             Int                @id @default(autoincrement())
+  name           String
+  description    String
+  imageUrl       String?
+  themeColor     String
+  holdToDispense Boolean            @default(false)
+  shown          Boolean            @default(true)
+  ingredients    RecipeIngredient[]
 }
 
 model RecipeIngredient {

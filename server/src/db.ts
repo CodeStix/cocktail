@@ -258,6 +258,7 @@ export async function getRecipe(id: number): Promise<Recipe | null> {
             name: true,
             themeColor: true,
             shown: true,
+            holdToDispense: true,
             ingredients: {
                 select: {
                     amount: true,
@@ -291,6 +292,7 @@ export async function getRecipes(all: boolean): Promise<Recipe[]> {
             name: true,
             themeColor: true,
             shown: true,
+            holdToDispense: true,
             ingredients: {
                 select: {
                     amount: true,
@@ -344,6 +346,7 @@ export async function createRecipe(): Promise<Recipe> {
             name: true,
             themeColor: true,
             shown: true,
+            holdToDispense: true,
             ingredients: {
                 select: {
                     amount: true,
@@ -441,6 +444,7 @@ export async function updateRecipe(id: number, data: Partial<Recipe>): Promise<R
             name: true,
             themeColor: true,
             shown: true,
+            holdToDispense: true,
             ingredients: {
                 select: {
                     amount: true,

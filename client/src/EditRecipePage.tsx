@@ -24,11 +24,15 @@ import { RecipeCard } from "./components/RecipeCard";
 import useSWR from "swr";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSave } from "@fortawesome/free-regular-svg-icons";
-import { faFlask, faRemove, faTrash } from "@fortawesome/free-solid-svg-icons";
+import { faAdd, faRemove, faTrash } from "@fortawesome/free-solid-svg-icons";
 import { KeyboardContext } from "./KeyboardContext";
 import { ColorSelect } from "./components/ColorSelect";
 
-export function EditIngredientForm(props: { ingredient: RecipeIngredient; onChange: (ingr: RecipeIngredient) => void }) {
+export function EditIngredientForm(props: {
+    ingredient: RecipeIngredient;
+    onChange: (ingr: RecipeIngredient) => void;
+    onDelete: (ingr: RecipeIngredient) => void;
+}) {
     const { data: ingredients } = useSWR<Ingredient[]>(SERVER_URL + "/api/ingredients", fetcher);
     const ingr = props.ingredient;
     const [amount, setAmount] = useState("");
@@ -53,7 +57,12 @@ export function EditIngredientForm(props: { ingredient: RecipeIngredient; onChan
     }
 
     return (
-        <Flex direction="column" gap="1">
+        <Flex direction="column" gap="1" position="relative">
+            <Box position="absolute" top="1" right="1">
+                <Button color="red" onClick={() => props.onDelete(ingr)}>
+                    <FontAwesomeIcon icon={faTrash} /> Remove ingredient
+                </Button>
+            </Box>
             <label>
                 <Text as="div" size="2" mb="1" weight="bold">
                     Ingredient
@@ -250,25 +259,6 @@ export function EditRecipePage() {
                             <Text as="div" size="2" mb="1" weight="bold">
                                 Ingredients
                             </Text>
-                            <Box flexGrow="1"></Box>
-                            <Button
-                                color="green"
-                                onClick={() => {
-                                    setRecipe({
-                                        ...recipe,
-                                        ingredients: [
-                                            ...recipe.ingredients,
-                                            {
-                                                amount: 100,
-                                                order: 1,
-                                                ingredient: undefined,
-                                                ingredientId: undefined,
-                                            },
-                                        ],
-                                    });
-                                }}>
-                                <FontAwesomeIcon icon={faFlask} /> Add ingredient
-                            </Button>
                         </Flex>
 
                         <Flex direction="column" gap="3" mt="1">
@@ -276,6 +266,11 @@ export function EditRecipePage() {
                                 <Card key={e.ingredientId}>
                                     <EditIngredientForm
                                         ingredient={e}
+                                        onDelete={() => {
+                                            const arr = [...recipe.ingredients];
+                                            arr.splice(i, 1);
+                                            setRecipe({ ...recipe, ingredients: arr });
+                                        }}
                                         onChange={(ingr) => {
                                             const arr = [...recipe.ingredients];
                                             arr[i] = ingr;
@@ -284,13 +279,35 @@ export function EditRecipePage() {
                                     />
                                 </Card>
                             ))}
-                            {recipe.ingredients.length === 0 && (
-                                <Card style={{ opacity: 0.5 }}>
-                                    <Flex height="200px" align="center" justify="center">
-                                        <Text>No ingredients added yet!</Text>
-                                    </Flex>
-                                </Card>
-                            )}
+
+                            <Card>
+                                <Flex height="200px" align="center" justify="center" direction="column" gap="1">
+                                    {recipe.ingredients.length === 0 && (
+                                        <Text size="4" style={{ opacity: 0.5 }}>
+                                            No ingredients added yet!
+                                        </Text>
+                                    )}
+                                    <Button
+                                        color="green"
+                                        size="3"
+                                        onClick={() => {
+                                            setRecipe({
+                                                ...recipe,
+                                                ingredients: [
+                                                    ...recipe.ingredients,
+                                                    {
+                                                        amount: 100,
+                                                        order: 1,
+                                                        ingredient: undefined,
+                                                        ingredientId: undefined,
+                                                    },
+                                                ],
+                                            });
+                                        }}>
+                                        <FontAwesomeIcon icon={faAdd} /> Add ingredient
+                                    </Button>
+                                </Flex>
+                            </Card>
                         </Flex>
                     </div>
 

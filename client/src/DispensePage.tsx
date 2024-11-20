@@ -173,6 +173,11 @@ export function DispensePage() {
                                 <Card key={e.ingredientId}>
                                     <EditIngredientForm
                                         ingredient={e}
+                                        onDelete={() => {
+                                            const arr = [...recipe.ingredients];
+                                            arr.splice(i, 1);
+                                            setRecipe({ ...recipe, ingredients: arr });
+                                        }}
                                         onChange={(ingr) => {
                                             const arr = [...recipe.ingredients];
                                             arr[i] = ingr;

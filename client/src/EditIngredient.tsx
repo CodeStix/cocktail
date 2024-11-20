@@ -2,7 +2,7 @@ import { Ingredient, Output } from "cocktail-shared";
 import { useContext, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { SERVER_URL, fetchJson, fetcher } from "./util";
-import { AlertDialog, Text, Box, Button, Callout, Flex, Select, Separator, Switch, TextField, Heading, Skeleton } from "@radix-ui/themes";
+import { AlertDialog, Text, Box, Button, Callout, Flex, Select, Separator, Switch, TextField, Heading, Skeleton, Grid } from "@radix-ui/themes";
 import { faSave } from "@fortawesome/free-regular-svg-icons";
 import { faRemove, faTrash, faWarning } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -96,19 +96,24 @@ export function EditIngredientPage() {
                         />
                     </label>
 
-                    <label>
-                        <Text as="div" size="2" mb="1" weight="bold">
-                            In fridge?
-                        </Text>
-                        <Switch checked={editing.inFridge} onCheckedChange={(checked) => setEditing({ ...editing, inFridge: checked })} />
-                    </label>
+                    <Grid columns="2">
+                        <label>
+                            <Text as="div" size="2" mb="1" weight="bold">
+                                In fridge?
+                            </Text>
+                            <Switch checked={editing.inFridge} onCheckedChange={(checked) => setEditing({ ...editing, inFridge: checked })} />
+                        </label>
 
-                    <label>
-                        <Text as="div" size="2" mb="1" weight="bold">
-                            Infinite amount
-                        </Text>
-                        <Switch checked={editing.infiniteAmount} onCheckedChange={(checked) => setEditing({ ...editing, infiniteAmount: checked })} />
-                    </label>
+                        <label>
+                            <Text as="div" size="2" mb="1" weight="bold">
+                                Infinite amount
+                            </Text>
+                            <Switch
+                                checked={editing.infiniteAmount}
+                                onCheckedChange={(checked) => setEditing({ ...editing, infiniteAmount: checked })}
+                            />
+                        </label>
+                    </Grid>
 
                     {!editing.infiniteAmount && (
                         <Box>

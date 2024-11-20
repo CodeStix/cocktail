@@ -435,6 +435,7 @@ export async function updateRecipe(id: number, data: Partial<Recipe>): Promise<R
             name: data.name,
             imageUrl: data.imageUrl,
             themeColor: data.themeColor,
+            holdToDispense: data.holdToDispense,
             shown: data.shown,
         },
         select: {

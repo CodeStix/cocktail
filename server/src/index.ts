@@ -112,7 +112,7 @@ export class CocktailMachine extends EventEmitter {
     // private outputs: Output[] = [];
 
     // Clean state
-    private dirtyOutputs = new Set<Output>();
+    private dirtyOutputs = new Map<number, Output>();
     private currentlyCleaningOutput: Output | null = null;
     private isThoroughClean = true;
     private cleanNextOutputAt = 0;
@@ -318,24 +318,27 @@ export class CocktailMachine extends EventEmitter {
                 this.gotoSleepAt = time + this.gotoSleepTimeout;
             }
 
-            await this.relays.clearAllGpio();
-
             switch (newState) {
                 case State.IDLE: {
+                    await this.relays.clearAllGpio();
                     break;
                 }
 
                 case State.SLEEP: {
+                    await this.relays.clearAllGpio();
                     break;
                 }
 
                 case State.CLEAN: {
+                    // await this.relays.clearAllGpio();
                     this.currentlyCleaningOutput = null;
 
                     for (const output of await this.getAllOutputs()) {
                         if (output.settings.requiredWhenCleaning ?? false) {
                             await this.relays.setGpio(output.index, true);
-                            this.dirtyOutputs.delete(output);
+                            this.dirtyOutputs.delete(output.index);
+                        } else {
+                            await this.relays.setGpio(output.index, false);
                         }
                     }
 
@@ -353,6 +356,8 @@ export class CocktailMachine extends EventEmitter {
                     for (const output of await this.getAllOutputs()) {
                         if (output.settings.requiredWhenDispensing ?? false) {
                             await this.relays.setGpio(output.index, true);
+                        } else {
+                            await this.relays.setGpio(output.index, false);
                         }
                     }
 
@@ -376,6 +381,8 @@ export class CocktailMachine extends EventEmitter {
                     for (const output of await this.getAllOutputs()) {
                         if (output.settings.requiredWhenDispensing ?? false) {
                             await this.relays.setGpio(output.index, true);
+                        } else {
+                            await this.relays.setGpio(output.index, false);
                         }
                     }
 
@@ -391,6 +398,8 @@ export class CocktailMachine extends EventEmitter {
                     for (const output of await this.getAllOutputs()) {
                         if (output.settings.requiredWhenDispensing ?? false) {
                             await this.relays.setGpio(output.index, true);
+                        } else {
+                            await this.relays.setGpio(output.index, false);
                         }
                     }
 
@@ -423,7 +432,7 @@ export class CocktailMachine extends EventEmitter {
             // outputs
             //     .filter((e) => e.settings.includeInFullClean ?? false)
             //     .forEach((e) => console.log("clean output", e.id, e.name, JSON.stringify(e.settings)));
-            outputs.filter((e) => e.settings.includeInFullClean ?? false).forEach((e) => this.dirtyOutputs.add(e));
+            outputs.filter((e) => e.settings.includeInFullClean ?? false).forEach((e) => this.dirtyOutputs.set(e.index, e));
         }
 
         if (this.dirtyOutputs.size > 0) {
@@ -592,7 +601,7 @@ export class CocktailMachine extends EventEmitter {
                             }
 
                             this.currentlyCleaningOutput = Array.from(this.dirtyOutputs.values())[0];
-                            this.dirtyOutputs.delete(this.currentlyCleaningOutput);
+                            this.dirtyOutputs.delete(this.currentlyCleaningOutput.index);
                             console.log("%d: Clean enable %d", time, this.currentlyCleaningOutput.index);
                             await this.relays.setGpio(this.currentlyCleaningOutput.index, true);
 
@@ -692,7 +701,7 @@ export class CocktailMachine extends EventEmitter {
                                     assert(ingr);
 
                                     if ((ingr.output!.settings.cleanSeconds ?? 0.5) > 0) {
-                                        this.dirtyOutputs.add(ingr.output!);
+                                        this.dirtyOutputs.set(ingr.output!.index, ingr.output!);
                                     }
                                     await this.relays.setGpio(ingr.output!.index, true);
                                 }

@@ -30,6 +30,7 @@ import multer from "multer";
 import path from "path";
 import sharp from "sharp";
 import { execSync, spawn } from "child_process";
+import exitHook from "async-exit-hook";
 
 let machine: CocktailMachine;
 
@@ -351,5 +352,32 @@ async function main() {
 
     reopenChromium();
 }
+
+exitHook.uncaughtExceptionHandler((err, callback) => {
+    console.log("Uncaught exception", err);
+    machine.relays
+        .clearAll()
+        .catch(() => console.error("Could not clear relays on exit"))
+        .then(() => console.log("Cleared all relays on exit"))
+        .finally(callback);
+});
+
+exitHook.unhandledRejectionHandler((err, callback) => {
+    console.log("Uncaught rejection", err);
+    machine.relays
+        .clearAll()
+        .catch(() => console.error("Could not clear relays on exit"))
+        .then(() => console.log("Cleared all relays on exit"))
+        .finally(callback);
+});
+
+exitHook((callback) => {
+    console.log("Exit handler");
+    machine.relays
+        .clearAll()
+        .catch(() => console.error("Could not clear relays on exit"))
+        .then(() => console.log("Cleared all relays on exit"))
+        .finally(callback);
+});
 
 main();

@@ -429,6 +429,26 @@ export function DebugPage() {
                                         Enable when waste full
                                     </Flex>
                                 </Text>
+
+                                <Text as="label" size="2">
+                                    <Flex gap="2" align="center">
+                                        <Checkbox
+                                            color="blue"
+                                            checked={editOutput.settings.prepareBeforeDispense ?? false}
+                                            size="1"
+                                            onCheckedChange={(checked) =>
+                                                setEditOutput({
+                                                    ...editOutput,
+                                                    settings: {
+                                                        ...editOutput.settings,
+                                                        prepareBeforeDispense: checked === true,
+                                                    },
+                                                })
+                                            }
+                                        />{" "}
+                                        Prepare before dispense
+                                    </Flex>
+                                </Text>
                             </Flex>
                         </Flex>
                     )}

@@ -98,6 +98,7 @@ export class CocktailMachine extends EventEmitter {
     pumpWasteTime = 10;
     beforeDispenseTimeout = 40;
     afterDispenseTimeout = 15;
+    prepareDispenseTime = 0.4;
 
     private _relay12v!: PCF8575Driver;
     private _relay24v!: PCF8575Driver;
@@ -126,6 +127,7 @@ export class CocktailMachine extends EventEmitter {
     private nextFullCleanAt = Number.MAX_SAFE_INTEGER;
     private gotoSleepAt = Number.MAX_SAFE_INTEGER;
     private dispenseTimeoutAt = Number.MAX_SAFE_INTEGER;
+    private stopDispensePrepareAt = Number.MAX_SAFE_INTEGER;
 
     private lastEventLoopTimeMs = new Date().getTime();
     private stopPumpingWasteAt = Number.MAX_SAFE_INTEGER;
@@ -239,7 +241,7 @@ export class CocktailMachine extends EventEmitter {
 
                     case State.BEFORE_DISPENSE: {
                         for (let i = 0; i < BUTTON_PINS.length; i++) {
-                            if (i === WHITE_BUTTON) {
+                            if (i === WHITE_BUTTON && this.stopDispensePrepareAt === Number.MAX_SAFE_INTEGER) {
                                 await this.led.setDutyCycle(i, blinkingLedAnimation(timeMs));
                             } else if (i == RED_BUTTON) {
                                 await this.led.setDutyCycle(i, interactableLedAnimation(timeMs));
@@ -353,12 +355,24 @@ export class CocktailMachine extends EventEmitter {
                         status: "waiting",
                     });
 
+                    let anyOutputWantsPrepare = false;
                     for (const output of await this.getAllOutputs()) {
-                        if (output.settings.requiredWhenDispensing ?? false) {
+                        const prepareOutput = output.settings.prepareBeforeDispense ?? false;
+                        if (prepareOutput) {
+                            anyOutputWantsPrepare = true;
+                        }
+
+                        if ((output.settings.requiredWhenDispensing ?? false) || prepareOutput) {
                             await this.relays.setGpio(output.index, true);
                         } else {
                             await this.relays.setGpio(output.index, false);
                         }
+                    }
+
+                    if (anyOutputWantsPrepare && (this.state === State.SLEEP || this.state === State.IDLE)) {
+                        this.stopDispensePrepareAt = time + this.prepareDispenseTime;
+                    } else {
+                        this.stopDispensePrepareAt = Number.MAX_SAFE_INTEGER;
                     }
 
                     this.dispenseTimeoutAt = time + this.beforeDispenseTimeout;
@@ -620,16 +634,26 @@ export class CocktailMachine extends EventEmitter {
                     }
 
                     case State.BEFORE_DISPENSE: {
-                        if (changedButtons[WHITE_BUTTON] && buttonStates[WHITE_BUTTON]) {
-                            await this.transitionState(State.DISPENSE);
-                            break;
-                        }
-
                         const command = this.popCommand();
                         if (command?.type == "prepare-dispense") {
                             this.dispenseSequence = command.dispenseSequence;
                             this.holdToDispense = command.holdToDispense ?? false;
                             this.dispenseTimeoutAt = time + this.beforeDispenseTimeout;
+                        }
+
+                        if (time > this.stopDispensePrepareAt) {
+                            this.stopDispensePrepareAt = Number.MAX_SAFE_INTEGER;
+                            console.log(chalk.gray("Stop dispense prepare, ready for dispense"));
+                            for (const output of await this.getAllOutputs()) {
+                                if (output.settings.prepareBeforeDispense ?? false) {
+                                    await this.relays.setGpio(output.index, false);
+                                }
+                            }
+                        }
+
+                        if (this.stopDispensePrepareAt === Number.MAX_SAFE_INTEGER && changedButtons[WHITE_BUTTON] && buttonStates[WHITE_BUTTON]) {
+                            await this.transitionState(State.DISPENSE);
+                            break;
                         }
 
                         if (

@@ -20,6 +20,8 @@ export type OutputSettings = {
     // type: "pump" | "valve" | "other";
     // Flow rate if applicable
     mlPerSecond?: number | "use-counter";
+    // Amount of seconds needed to prepare dispensing
+    prepareBeforeDispense?: boolean;
     // Amount of seconds needed to properly clean
     cleanSeconds?: number;
     // When true, output will be constantly on during the whole cleaning procedure
@@ -86,29 +88,6 @@ export type DispenseSequence = {
         remainingMl: number;
     }[];
 }[];
-
-// export type PatchIngredientRequest = {
-//     id: number;
-//     data: Partial<Ingredient>;
-// };
-
-// export type PatchIngredientResponse = {
-//     ingredient: Ingredient;
-// };
-
-// export type GetIngredientsResponse = {
-//     ingredients: Ingredient[];
-// };
-
-// export type DeleteIngredientsRequest = {
-//     id: number;
-// };
-
-// export type PostIngredientRequest = {};
-
-// export type PostIngredientResponse = {
-//     ingredient: Ingredient;
-// };
 
 export type ServerMessage = { type: "test" };
 

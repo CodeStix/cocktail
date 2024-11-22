@@ -98,7 +98,7 @@ export class CocktailMachine extends EventEmitter {
     pumpWasteTime = 10;
     beforeDispenseTimeout = 40;
     afterDispenseTimeout = 15;
-    prepareDispenseTime = 0.4;
+    prepareDispenseTime = 0.7;
 
     private _relay12v!: PCF8575Driver;
     private _relay24v!: PCF8575Driver;
@@ -311,6 +311,18 @@ export class CocktailMachine extends EventEmitter {
     //     this.transitionState()
     // }
 
+    private async dispenseSequenceContainsOutput(outputId: number): Promise<boolean> {
+        for (const seq of this.dispenseSequence) {
+            for (const part of seq.ingredients) {
+                const ingr = await this.getIngredientById(part.ingredientId);
+                if (ingr!.outputId === outputId) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     private async transitionState(newState: State) {
         console.log(chalk.bold(chalk.cyan(`Transition to ${State[newState]}`)));
 
@@ -357,7 +369,8 @@ export class CocktailMachine extends EventEmitter {
 
                     let anyOutputWantsPrepare = false;
                     for (const output of await this.getAllOutputs()) {
-                        const prepareOutput = output.settings.prepareBeforeDispense ?? false;
+                        const prepareOutput =
+                            (output.settings.prepareBeforeDispense ?? false) && (await this.dispenseSequenceContainsOutput(output.id));
                         if (prepareOutput) {
                             anyOutputWantsPrepare = true;
                         }
